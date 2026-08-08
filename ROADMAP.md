@@ -46,10 +46,16 @@ The project can't teach anything until it runs once on a document worth searchin
 - [x] **Guard the empty index** in `app.py`. Branches on an empty result from
       `retriever.invoke()` and returns before constructing the model, so no API call is paid
       for. *Verified with a stubbed retriever: returns the "run python ingest.py" message.*
-- [ ] **Rewrite the README.** Highest portfolio value per minute of effort. Drop the course
-      jargon, lead with what the project does, add a screenshot, and state that a fresh clone
-      has no `vectorstore/` so `ingest.py` is mandatory.
-      **Only item left in this phase.**
+- [x] **Rewrite the README.** Leads with what the project does, documents that a fresh clone
+      has no `vectorstore/` so `ingest.py` is mandatory, and states real costs. Includes a
+      "What I learned" section covering the four non-obvious things this project surfaced:
+      retrieval and grounding being separate mechanisms, the impossibility of corpus
+      summarization, junk competing for retrieval slots, and same-dimension embedding models
+      failing silently.
+      **Still needed: a screenshot at `docs/screenshot.png`, with the Sources panel expanded.**
+      The image placeholder is already in the README and will render broken until it exists.
+
+**Phase 1 complete 2026-08-07**, apart from the screenshot, which only Erin can take.
 - [x] **Friendlier missing-key error.** `main()` checks `OPENAI_API_KEY` up front and shows a
       Streamlit error telling you to fill in `.env`, instead of a raw traceback on the first
       question. `load_dotenv()` also moved to module scope so the app is importable by the
