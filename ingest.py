@@ -12,6 +12,31 @@ DATA_DIR = Path("data")
 VECTORSTORE_DIR = Path("vectorstore")
 SUPPORTED_EXTENSIONS = {".md", ".pdf", ".txt"}
 
+# Must match EMBEDDING_MODEL in app.py. Questions are embedded by the app and compared
+# against chunks embedded here, so two different models produce meaningless comparisons.
+# The old default (text-embedding-ada-002) has the same 1536 dimensions as this one, so a
+# mismatch raises no error at all. It just silently returns bad matches.
+EMBEDDING_MODEL = "text-embedding-3-small"
+
+
+def strip_leading_blockquote(text):
+    """Drop a blockquote block at the very top of a document.
+
+    Pages fetched from documentation sites often open with a note addressed to an LLM,
+    telling it where to find an index. It is not content, and because it is the only text
+    in the corpus that talks about documentation in the abstract, it beats real content on
+    exactly the vague questions where you can least afford to waste a retrieval slot.
+    """
+    lines = text.splitlines()
+    if not lines or not lines[0].startswith(">"):
+        return text
+
+    index = 0
+    while index < len(lines) and lines[index].startswith(">"):
+        index += 1
+
+    return "\n".join(lines[index:]).lstrip()
+
 
 def load_documents():
     files = [
@@ -40,7 +65,9 @@ def load_documents():
         else:
             documents.append(
                 Document(
-                    page_content=path.read_text(encoding="utf-8"),
+                    page_content=strip_leading_blockquote(
+                        path.read_text(encoding="utf-8")
+                    ),
                     metadata={"source": str(path)},
                 )
             )
@@ -58,11 +85,17 @@ def main():
     )
     chunks = splitter.split_documents(documents)
 
-    Chroma.from_documents(
-        documents=chunks,
-        embedding=OpenAIEmbeddings(),
+    vectorstore = Chroma(
         persist_directory=str(VECTORSTORE_DIR),
+        embedding_function=OpenAIEmbeddings(model=EMBEDDING_MODEL),
     )
+
+    # Chroma.from_documents() would append. It generates a fresh UUID for every chunk
+    # against a get-or-create collection, so running this script twice stores two copies
+    # of everything, charges you twice, and degrades retrieval by returning duplicates.
+    # Clearing first makes re-indexing safe to repeat.
+    vectorstore.reset_collection()
+    vectorstore.add_documents(chunks)
 
     print(f"Indexed {len(chunks)} chunks from {len(documents)} document pages/files.")
     print(f"Vector store saved to {VECTORSTORE_DIR}/")
