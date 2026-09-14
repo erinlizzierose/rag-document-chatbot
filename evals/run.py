@@ -76,11 +76,16 @@ def grade(question, answer, docs):
     if is_refusal(answer):
         problems.append("declined a question the documents cover")
 
-    expected = question.get("expect_source")
+    # One string, or a list when more than one document genuinely answers the question. Any
+    # one of them counts: requiring a specific file where two are equally correct fails good
+    # answers, and a suite with bogus failures in it stops getting trusted.
+    expected = question.get("expect_source") or []
+    if isinstance(expected, str):
+        expected = [expected]
     if expected:
         sources = {doc.metadata.get("source") for doc in docs}
-        if expected not in sources:
-            problems.append(f"never retrieved {expected}")
+        if not sources.intersection(expected):
+            problems.append("never retrieved " + " or ".join(expected))
 
     return not problems, problems
 

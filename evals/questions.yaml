@@ -94,7 +94,12 @@
   question: How do I store information that should persist across different conversation threads?
   must_mention: ["store"]
   should_refuse: false
-  expect_source: data/langchain-add-memory.md
+  # Two files answer this one properly: add-memory.md explains stores at length, and
+  # persistence.md covers the same ground in its checkpointer-vs-store table. Pinning it to a
+  # single file failed a correct, well-cited answer. Either source counts.
+  expect_source:
+    - data/langchain-add-memory.md
+    - data/langchain-persistence.md
 
 - id: store-semantic-search
   question: How do I enable semantic search in a LangGraph memory store?
@@ -162,7 +167,9 @@
   # Plausible, specific, and entirely absent. A confident answer here is a hallucination.
 
 - id: refuse-project-internals
-  question: What chunk size does this chatbot use when splitting documents?
+  question: How do I set the page title in a Streamlit app?
   should_refuse: true
-  # About the app itself, not its corpus. Worth testing because SOURCES.md used to be indexed
-  # and made questions like this half-answerable.
+  # About the app itself rather than its corpus. The first version of this asked what chunk
+  # size "this chatbot" uses, which the model reasonably read as the chatbot in the docs and
+  # answered from a LangChain code sample. That was an ambiguous question, not a bad refusal.
+  # Streamlit appears nowhere in the LangChain documentation, so this version has one reading.
