@@ -12,6 +12,13 @@ DATA_DIR = Path("data")
 VECTORSTORE_DIR = Path("vectorstore")
 SUPPORTED_EXTENSIONS = {".md", ".pdf", ".txt"}
 
+# Files that live in data/ but are about the corpus rather than part of it. SOURCES.md is
+# attribution, and it belongs beside the documents it attributes. Indexed, though, it is two
+# chunks of citation table and staleness warning: the only text in the corpus discussing
+# documentation in the abstract, which is exactly what wins slots on vague questions. Same
+# problem strip_leading_blockquote() exists to solve, arriving by a different route.
+EXCLUDED_FILENAMES = {"SOURCES.md"}
+
 # Must match EMBEDDING_MODEL in app.py. Questions are embedded by the app and compared
 # against chunks embedded here, so two different models produce meaningless comparisons.
 # The old default (text-embedding-ada-002) has the same 1536 dimensions as this one, so a
@@ -42,7 +49,9 @@ def load_documents():
     files = [
         path
         for path in DATA_DIR.iterdir()
-        if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS
+        if path.is_file()
+        and path.suffix.lower() in SUPPORTED_EXTENSIONS
+        and path.name not in EXCLUDED_FILENAMES
     ]
 
     if not files:

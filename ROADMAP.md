@@ -5,10 +5,10 @@ end up with a small, presentable repo.
 
 ---
 
-## Current state, 2026-08-31
+## Current state, 2026-09-14
 
-**The app works.** Five commits on `main`, index healthy at 240 vectors across six documents.
-Run it with `streamlit run app.py`.
+**The app works, and phases 0 through 2 are complete.** Index healthy at 239 vectors across
+five documents. Run it with `streamlit run app.py`.
 
 What it does today:
 
@@ -17,18 +17,28 @@ What it does today:
 - Handles follow-up questions ("and what about the other one?") by rewriting them into
   standalone questions before searching
 
-**Not committed:**
+**Closed since the last update:**
 
-- The five `data/langchain-*.md` files are untracked. The index is built from them, and git
-  does not know they exist.
-- `stash@{0}` holds the Phase 2 housekeeping: MIT `LICENSE`, `data/SOURCES.md` attribution,
-  pinned `requirements.txt`, and deletion of the stale `sample_notes.md`. Recover with
-  `git stash pop`.
+- The corpus and the Phase 2 housekeeping are both committed (`c0b98c6`, `9696403`). The
+  `data/langchain-*.md` files, `LICENSE`, `data/SOURCES.md`, and the pinned
+  `requirements.txt` are all tracked.
+- `docs/screenshot.png` exists, so the README no longer renders a broken image.
+- `data/SOURCES.md` is no longer indexed. `load_documents()` took every `.md` in `data/`,
+  so two chunks of the index were the project's own citation table: text about
+  documentation in the abstract, competing for slots on exactly the vague questions where a
+  wasted slot hurts most. `EXCLUDED_FILENAMES` now skips it. The index went from 241 chunks
+  to 239, and attribution stays beside the documents it attributes.
 
-**Known gaps in the docs themselves:**
+**Still open, small:**
 
-- `docs/screenshot.png` does not exist, so the README renders a broken image.
+- `stash@{0}` is redundant and should be dropped. Inspected on 2026-09-14: it holds only the
+  `requirements.txt` pinning and the `sample_notes.md` deletion, both already in the working
+  tree. It contains no `LICENSE` and no `SOURCES.md`, despite what the previous version of
+  this section claimed.
 - The README does not yet mention that conversation memory is built.
+- The README's "about $0.0003 per question" predates `build_search_query()`. Every follow-up
+  now makes a second `gpt-4o-mini` call. That call carries no retrieved context so it is
+  cheap next to the answer call, but the figure is no longer the whole story.
 
 **Suggested next step:** Phase 3, starting with the eval set. Judging answer quality by feel
 has already stopped scaling.
@@ -49,7 +59,7 @@ has already stopped scaling.
       *Retrieval still returned 4 chunks, because similarity search has no concept of "no
       match." The grounding instruction is what turns that into an honest refusal.*
 
-## Phase 1 — Correctness (complete 2026-08-07, except the screenshot)
+## Phase 1 — Correctness (complete 2026-09-14)
 
 - [x] **Fix duplicate ingest.** Now constructs the store, calls `reset_collection()`, then
       `add_documents()`. `Chroma.from_documents` generated a fresh UUID per chunk against a
@@ -75,26 +85,24 @@ has already stopped scaling.
       has no `vectorstore/`, states real costs, and includes a "What I learned" section.
 - [x] Removed the duplicated source-label formatting; both call sites use `describe_source()`.
       *(Pulled forward from Phase 2.)*
-- [ ] **Screenshot at `docs/screenshot.png`, Sources panel expanded.** Only Erin can take this.
-      The README already links it and renders broken until it exists.
+- [x] **Screenshot at `docs/screenshot.png`.** Added 2026-09-14.
 
-## Phase 2 — Polish (written, currently stashed)
+## Phase 2 — Polish (complete 2026-08-31)
 
-All five are done and sitting in `stash@{0}`. Erin set them aside on 2026-08-11 to prioritise
-logic work. `git stash pop` restores them. Marked `[~]` rather than `[x]` because they are not
-in the working tree.
+Set aside on 2026-08-11 to prioritise logic work, then committed on 2026-08-31 in `c0b98c6`
+and `9696403`.
 
-- [~] Pin `requirements.txt` by hand. Not `pip freeze`: the venv holds langchain-community,
+- [x] Pin `requirements.txt` by hand. Not `pip freeze`: the venv holds langchain-community,
       langchain-classic, and langchain-protocol, which are never imported.
-- [~] Drop bare `langchain` from requirements. Nothing imports it; in LangChain 1.x it is a
+- [x] Drop bare `langchain` from requirements. Nothing imports it; in LangChain 1.x it is a
       thin namespace and every piece used here lives in its own package.
-- [~] Add an MIT `LICENSE`.
-- [~] **Attribution for the documents in `data/`.** They are LangChain documentation pages,
+- [x] Add an MIT `LICENSE`.
+- [x] **Attribution for the documents in `data/`.** They are LangChain documentation pages,
       about 180 KB. Verified MIT licensed via the `langchain-ai/docs` repo, so redistribution
       with attribution is fine. `data/SOURCES.md` lists each URL, the fetch date (2026-08-04),
       the upstream license, and a staleness warning.
       **Settle this before the repo goes public.**
-- [~] Delete `data/sample_notes.md`. It still claims to exist "so the chatbot has something to
+- [x] Delete `data/sample_notes.md`. It still claims to exist "so the chatbot has something to
       answer questions about before you add your own notes or PDF," which is no longer true.
 
 ## Phase 3 — Run it locally too, and compare
