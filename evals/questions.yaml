@@ -1,0 +1,168 @@
+# Evaluation set for the document chatbot.
+#
+# Each entry is one question plus the loosest check that would still catch a real regression.
+# The point is not to grade prose. It is to notice when the app stops finding the right
+# documents, or stops refusing questions it cannot answer.
+#
+# Fields:
+#   id            short slug, so a failure has a name you can talk about
+#   question      asked exactly as written, with no conversation history
+#   must_mention  substrings that all have to appear in the answer, matched case-insensitively
+#   should_refuse true if the corpus genuinely does not cover this and the app must say so
+#   expect_source a file the answer should have retrieved from, checked separately from the
+#                 text so you can see retrieval drift even while answers still pass
+#
+# Keep must_mention short. Two or three load-bearing terms catch regressions; a long list just
+# fails whenever the model rephrases something, and a suite that cries wolf gets ignored.
+#
+# The corpus is a 2026-08-04 snapshot of the LangChain docs. These expectations describe what
+# those documents say, not what is true of LangChain today.
+
+# --- Answerable: short-term memory and checkpointers ---
+
+- id: add-checkpointer
+  question: How do I add short-term memory to a LangGraph agent?
+  must_mention: ["checkpointer"]
+  should_refuse: false
+  expect_source: data/langchain-short-term-memory.md
+
+- id: checkpointer-vs-store
+  question: What is the difference between a checkpointer and a store?
+  must_mention: ["thread"]
+  should_refuse: false
+  expect_source: data/langchain-persistence.md
+
+- id: memorysaver-restarts
+  question: Why does MemorySaver lose my conversations when the process restarts, and what should I use instead?
+  must_mention: ["PostgresSaver"]
+  should_refuse: false
+  expect_source: data/langchain-persistence.md
+
+- id: thread-id-too-long
+  question: I am getting a database error that my thread_id is too long with PostgresSaver. What is the fix?
+  must_mention: ["255"]
+  should_refuse: false
+  expect_source: data/langchain-persistence.md
+
+- id: checkpoints-unbounded
+  question: My checkpoints keep growing over long conversations. What does the documentation suggest?
+  must_mention: ["delete"]
+  should_refuse: false
+  expect_source: data/langchain-persistence.md
+
+- id: thread-id-config
+  question: How do I pass a thread_id when invoking a graph?
+  must_mention: ["configurable", "thread_id"]
+  should_refuse: false
+  expect_source: data/langchain-persistence.md
+
+# --- Answerable: managing message history ---
+
+- id: trim-messages
+  question: How do I keep a conversation from outgrowing the model's context window?
+  must_mention: ["trim"]
+  should_refuse: false
+  expect_source: data/langchain-short-term-memory.md
+
+- id: trim-middleware
+  question: Which middleware decorator is used to trim message history in an agent?
+  must_mention: ["before_model"]
+  should_refuse: false
+  expect_source: data/langchain-short-term-memory.md
+
+- id: delete-messages
+  question: What class do I use to delete messages from agent state?
+  must_mention: ["RemoveMessage"]
+  should_refuse: false
+  expect_source: data/langchain-short-term-memory.md
+
+- id: summarize-messages
+  question: What is the built-in way to summarize message history instead of trimming it?
+  must_mention: ["SummarizationMiddleware"]
+  should_refuse: false
+  expect_source: data/langchain-short-term-memory.md
+
+- id: trim-vs-summarize
+  question: What is the downside of trimming or deleting messages compared with summarizing them?
+  must_mention: ["lose"]
+  should_refuse: false
+  expect_source: data/langchain-short-term-memory.md
+
+# --- Answerable: long-term memory and stores ---
+
+- id: long-term-memory-store
+  question: How do I store information that should persist across different conversation threads?
+  must_mention: ["store"]
+  should_refuse: false
+  expect_source: data/langchain-add-memory.md
+
+- id: store-semantic-search
+  question: How do I enable semantic search in a LangGraph memory store?
+  must_mention: ["embed"]
+  should_refuse: false
+  expect_source: data/langchain-add-memory.md
+
+# --- Answerable: agentic RAG ---
+
+- id: grade-documents
+  question: In the agentic RAG guide, how does the graph decide whether retrieved documents are relevant?
+  must_mention: ["grade"]
+  should_refuse: false
+  expect_source: data/langchain-agentic-rag.md
+
+- id: rewrite-on-bad-retrieval
+  question: What does the agentic RAG graph do when the grader marks the retrieved documents as irrelevant?
+  must_mention: ["rewrite"]
+  should_refuse: false
+  expect_source: data/langchain-agentic-rag.md
+
+# --- Answerable: v1 migration ---
+
+- id: minimum-python
+  question: What is the minimum Python version required by LangChain v1?
+  must_mention: ["3.10"]
+  should_refuse: false
+  expect_source: data/langchain-v1-migration.md
+
+- id: langchain-classic
+  question: I am using LLMChain. What do I need to do to migrate to v1?
+  must_mention: ["langchain-classic"]
+  should_refuse: false
+  expect_source: data/langchain-v1-migration.md
+
+- id: chat-model-return-type
+  question: What changed about the return type of chat model invocation in v1?
+  must_mention: ["AIMessage"]
+  should_refuse: false
+  expect_source: data/langchain-v1-migration.md
+
+# --- Must refuse: not covered by the corpus ---
+#
+# Half of what this app does is declining. Retrieval always returns four chunks, because
+# similarity search has no concept of "no match", so these questions get just as much context
+# as the real ones. Only the prompt stops the model answering from it.
+
+- id: refuse-capital-of-france
+  question: What is the capital of France?
+  should_refuse: true
+
+- id: refuse-django-deploy
+  question: How do I deploy a Django application to Heroku?
+  should_refuse: true
+
+- id: refuse-model-pricing
+  question: How much does OpenAI charge per token for gpt-4o-mini?
+  should_refuse: true
+  # Adjacent to the corpus without being in it. The docs mention model names constantly, so
+  # this is the refusal most likely to fail.
+
+- id: refuse-langchain-roadmap
+  question: What features are planned for LangChain v2?
+  should_refuse: true
+  # Plausible, specific, and entirely absent. A confident answer here is a hallucination.
+
+- id: refuse-project-internals
+  question: What chunk size does this chatbot use when splitting documents?
+  should_refuse: true
+  # About the app itself, not its corpus. Worth testing because SOURCES.md used to be indexed
+  # and made questions like this half-answerable.
