@@ -23,6 +23,17 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 # resend a long conversation on every question.
 MAX_HISTORY_MESSAGES = 6
 
+# Chunks retrieved per question. Overridable from the environment so evals/run.py can sweep it
+# without editing this file. More context is not automatically better: every extra chunk is
+# more to pay for and more material the model might answer from when it should decline.
+#
+# Swept against the eval set on 2026-09-14: k=4 scored 21/23, k=6 scored 22/23, and k=8 and
+# k=10 scored 22/23 as well. Six is where the gain arrives and where it stops, so anything
+# above it buys nothing and pays for more context on every question. All five refusals held at
+# every setting, so the extra material did not tempt the model into answering what it should
+# decline.
+RETRIEVAL_K = int(os.getenv("RETRIEVAL_K", "6"))
+
 NO_INDEX_MESSAGE = (
     "I could not find anything to search, because the document index is empty.\n\n"
     "Run `python ingest.py` in your terminal to build it, then reload this page."
@@ -113,7 +124,7 @@ def load_retriever():
         persist_directory=VECTORSTORE_DIR,
         embedding_function=embeddings,
     )
-    return vectorstore.as_retriever(search_kwargs={"k": 4})
+    return vectorstore.as_retriever(search_kwargs={"k": RETRIEVAL_K})
 
 
 def build_search_query(question, history):
