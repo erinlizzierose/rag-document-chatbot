@@ -111,6 +111,12 @@ def describe_source(doc):
     return f"{source}, page {page + 1}" if page is not None else source
 
 
+# A context tag in any case, with optional spaces or attributes: "</context >", "<context id=1>".
+# The \b keeps words like <contextual> alone, and a match stops at the end of a line, so it can
+# never swallow text across lines.
+CONTEXT_TAG = re.compile(r"<\s*/?\s*context\b[^<>\n]*>", re.IGNORECASE)
+
+
 def escape_context_tags(text):
     """Stop document text from closing the <context> block early.
 
@@ -118,9 +124,10 @@ def escape_context_tags(text):
     Left alone, a chunk containing "</context>" ends the block from the model's point of view,
     and anything after it reads as if the user wrote it rather than a document.
     """
-    # Also catches spaced and attributed forms such as "</context >" and "<context id=1>".
-    # The \b keeps words like <contextual> alone.
-    return re.sub(r"<\s*(/?)\s*context\b[^>]*>", r"&lt;\1context&gt;", text, flags=re.IGNORECASE)
+    # Only the angle brackets change, so the words inside a match stay readable to the model.
+    return CONTEXT_TAG.sub(
+        lambda match: match.group(0).replace("<", "&lt;").replace(">", "&gt;"), text
+    )
 
 
 def format_docs(docs):
