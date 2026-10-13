@@ -112,9 +112,9 @@ def describe_source(doc):
 
 
 # A context tag in any case, with optional spaces or attributes: "</context >", "<context id=1>".
-# The \b keeps words like <contextual> alone. A match may span lines, which only means two
-# brackets get escaped: the text inside is always kept.
-CONTEXT_TAG = re.compile(r"<\s*/?\s*context\b[^<>]*>", re.IGNORECASE)
+# The \b leaves longer words like <contextual> alone. A match runs to the next ">", even across
+# lines, which only means more brackets get escaped: the text inside is always kept.
+CONTEXT_TAG = re.compile(r"<\s*/?\s*context\b[^>]*>", re.IGNORECASE)
 
 
 def escape_context_tags(text):
