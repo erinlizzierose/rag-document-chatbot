@@ -120,6 +120,13 @@ the rewritten question goes to the answering model as well. Sending it to the re
 the raw one to the model let the two resolve "the second one" differently: right documents,
 wrong question answered, no error anywhere.
 
+**A delimiter is only as strong as the documents allow.** The prompt wraps retrieved text in
+`<context>` tags and tells the model everything inside is untrusted. But the bundled LangChain
+docs contain their own example prompts with a literal `</context>` in them, so a retrieved
+chunk could close the block early and the rest would read as if the user had written it. The
+tags are now escaped in document text before it goes into the prompt. That makes the defense
+harder to break, not unbreakable.
+
 ## Project layout
 
 ```text

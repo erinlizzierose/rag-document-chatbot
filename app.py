@@ -1,4 +1,5 @@
 import os
+import re
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
@@ -110,9 +111,19 @@ def describe_source(doc):
     return f"{source}, page {page + 1}" if page is not None else source
 
 
+def escape_context_tags(text):
+    """Stop document text from closing the <context> block early.
+
+    The bundled LangChain docs contain their own example prompts with literal <context> tags.
+    Left alone, a chunk containing "</context>" ends the block from the model's point of view,
+    and anything after it reads as if the user wrote it rather than a document.
+    """
+    return re.sub(r"<(/?)context>", r"&lt;\1context&gt;", text, flags=re.IGNORECASE)
+
+
 def format_docs(docs):
     return "\n\n".join(
-        f"[{index}] Source: {describe_source(doc)}\n{doc.page_content}"
+        f"[{index}] Source: {describe_source(doc)}\n{escape_context_tags(doc.page_content)}"
         for index, doc in enumerate(docs, start=1)
     )
 
