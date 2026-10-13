@@ -1,169 +1,188 @@
 # Roadmap
 
-Goals for this project: understand how retrieval augmented generation actually works, and
-end up with a small, presentable repo.
+This project exists to understand how retrieval augmented generation actually works, by
+building one small enough to read in an afternoon. This file tracks what has been built,
+what is next, and what was learned along the way. For setup and usage, see the
+[README](README.md).
 
----
+Last updated 2026-10-12.
 
-## Current state, 2026-09-14
+## Where it stands
 
-**The app works, and phases 0 through 2 are complete.** Index healthy at 239 vectors across
-five documents. Run it with `streamlit run app.py`.
+The app works end to end. It answers questions from the documents in `data/`, shows the
+passages it used, declines when the documents don't cover something, and handles follow-up
+questions by rewriting them to stand alone before searching. An eval set of 23 questions
+measures it, and the current settings pass 22. Offline unit tests cover the parts that don't
+call a model.
 
-What it does today:
+Next is running the same pipeline against a local model and comparing the two.
 
-- Answers questions from the documents in `data/`, showing the exact passages used
-- Declines instead of inventing when the documents don't cover something
-- Handles follow-up questions ("and what about the other one?") by rewriting them into
-  standalone questions before searching
+## Phase 0: Make it real (done)
 
-**Closed since the last update:**
+- [x] **Replace the placeholder document with real ones.** The original sample file was 927
+      characters, a single chunk, so the retriever handed over the whole document every time
+      and retrieval did nothing. Five LangChain documentation pages replaced it.
+- [x] **Check that retrieval actually chooses.** A question the documents answer pulled
+      chunks from only two of the files, which is retrieval doing its job.
+- [x] **Check that it declines.** Asked for the capital of France, it said it did not know.
+      *Retrieval still returned chunks, because similarity search has no concept of "no
+      match." The grounding instruction in the prompt is what turns that into an honest
+      refusal.*
 
-- The corpus and the Phase 2 housekeeping are both committed (`c0b98c6`, `9696403`). The
-  `data/langchain-*.md` files, `LICENSE`, `data/SOURCES.md`, and the pinned
-  `requirements.txt` are all tracked.
-- `docs/screenshot.png` exists, so the README no longer renders a broken image.
-- `data/SOURCES.md` is no longer indexed. `load_documents()` took every `.md` in `data/`,
-  so two chunks of the index were the project's own citation table: text about
-  documentation in the abstract, competing for slots on exactly the vague questions where a
-  wasted slot hurts most. `EXCLUDED_FILENAMES` now skips it. The index went from 241 chunks
-  to 239, and attribution stays beside the documents it attributes.
+## Phase 1: Correctness (done)
 
-**Still open, small:**
-
-- `stash@{0}` is redundant and should be dropped. Inspected on 2026-09-14: it holds only the
-  `requirements.txt` pinning and the `sample_notes.md` deletion, both already in the working
-  tree. It contains no `LICENSE` and no `SOURCES.md`, despite what the previous version of
-  this section claimed.
-- The README does not yet mention that conversation memory is built.
-- The README's "about $0.0003 per question" predates `build_search_query()`. Every follow-up
-  now makes a second `gpt-4o-mini` call. That call carries no retrieved context so it is
-  cheap next to the answer call, but the figure is no longer the whole story.
-
-**Suggested next step:** Phase 3, starting with the eval set. Judging answer quality by feel
-has already stopped scaling.
-
----
-
-## Phase 0 — Make it real (complete 2026-08-07)
-
-- [x] Cleared a stale empty `vectorstore/`
-- [x] **Added real documents to `data/`.** `sample_notes.md` alone was 927 characters, one
-      chunk, so with `k=4` the retriever handed over the whole document every time and
-      retrieval was a no-op. Added five LangChain documentation pages.
-- [x] Added a real `OPENAI_API_KEY` to `.env`
-- [x] `python ingest.py` → 242 chunks from 6 files in 7.5s, verified in the store
-- [x] Asked a question the documents answer. Retrieval selected chunks from only
-      `langchain-persistence.md` and `langchain-add-memory.md` out of six files.
-- [x] Asked one they do not answer ("capital of France") and it declined.
-      *Retrieval still returned 4 chunks, because similarity search has no concept of "no
-      match." The grounding instruction is what turns that into an honest refusal.*
-
-## Phase 1 — Correctness (complete 2026-09-14)
-
-- [x] **Fix duplicate ingest.** Now constructs the store, calls `reset_collection()`, then
-      `add_documents()`. `Chroma.from_documents` generated a fresh UUID per chunk against a
-      get-or-create collection, so every run appended and re-billed the embeddings.
+- [x] **Make re-indexing safe.** `Chroma.from_documents` generated a fresh ID per chunk
+      against a get-or-create collection, so every run appended a second copy and paid for
+      the embeddings again. `ingest.py` now clears the collection before adding.
       *Verified: a second ingest left 240 vectors, not 480.*
-- [x] **Name the embedding model explicitly in both files.** Both set
-      `EMBEDDING_MODEL = "text-embedding-3-small"` with paired comments. The old default,
-      `text-embedding-ada-002`, is also 1536 dimensions, so a mismatch raises nothing and
-      simply returns bad matches.
-- [x] **Guard the empty index.** Branches on an empty `retriever.invoke()` result and returns
-      before constructing the model, so no API call is paid for.
-- [x] **Friendlier missing-key error.** `main()` checks `OPENAI_API_KEY` up front instead of
-      failing as a raw traceback on the first question. `load_dotenv()` moved to module scope
-      so the app is importable without Streamlit, which Phase 3's eval scripts need.
-- [x] **Move retrieved context out of the system message.** Context sits in the human turn
-      inside `<context>` tags; the system prompt says tagged text is untrusted document
+- [x] **Name the embedding model explicitly in both files.** The old default,
+      `text-embedding-ada-002`, has the same 1536 dimensions as `text-embedding-3-small`, so
+      a mismatch raises nothing and quietly returns bad matches.
+- [x] **Guard the empty index.** An empty store returns no matches rather than an error. The
+      app checks for that and tells you to run `ingest.py`, before paying for a model call.
+- [x] **Friendlier missing-key error.** The app checks for `OPENAI_API_KEY` at startup
+      instead of failing with a traceback on the first question.
+- [x] **Move retrieved text out of the system message.** Retrieved chunks sit in the user
+      turn inside `<context>` tags, and the system prompt says tagged text is untrusted
       content, never instructions.
-- [x] **Strip agent-directed boilerplate during ingest.** `strip_leading_blockquote()` drops
-      only the contiguous `>` run at the top, so real blockquotes further down survive.
-      *Measured: on "summarize everything you know about memory," 2 of 4 retrieved chunks used
-      to be boilerplate. Now 0 of 4.*
-- [x] **Rewrite the README.** Leads with what the project does, documents that a fresh clone
-      has no `vectorstore/`, states real costs, and includes a "What I learned" section.
-- [x] Removed the duplicated source-label formatting; both call sites use `describe_source()`.
-      *(Pulled forward from Phase 2.)*
-- [x] **Screenshot at `docs/screenshot.png`.** Added 2026-09-14.
+- [x] **Strip agent-directed boilerplate during ingest.** The documentation pages opened with
+      a note addressed to an LLM. `strip_leading_blockquote()` removes only that leading
+      block, so real blockquotes further down survive. *Measured: on "summarize everything
+      you know about memory," 2 of 4 retrieved chunks used to be boilerplate. Now 0 of 4.*
+- [x] **Rewrite the README** to lead with what the project does, state real costs, and record
+      what was learned.
+- [x] **Add a screenshot** at `docs/screenshot.png`.
 
-## Phase 2 — Polish (complete 2026-08-31)
+## Phase 2: Polish (done)
 
-Set aside on 2026-08-11 to prioritise logic work, then committed on 2026-08-31 in `c0b98c6`
-and `9696403`.
+- [x] **Pin `requirements.txt` by hand**, not with `pip freeze`, so it lists only what the
+      code imports. Bare `langchain` is left out because nothing imports it.
+- [x] **Add an MIT `LICENSE`.**
+- [x] **Attribute the bundled documents.** They are LangChain documentation, MIT licensed via
+      the [langchain-ai/docs](https://github.com/langchain-ai/docs) repository.
+      [`data/SOURCES.md`](data/SOURCES.md) lists each source URL, the fetch date, and the
+      full upstream license. It is deliberately not indexed: as two chunks of citation table,
+      it competed with real content on vague questions.
+- [x] **Remove the stale sample file**, whose own text said it existed only until real
+      documents were added.
 
-- [x] Pin `requirements.txt` by hand. Not `pip freeze`: the venv holds langchain-community,
-      langchain-classic, and langchain-protocol, which are never imported.
-- [x] Drop bare `langchain` from requirements. Nothing imports it; in LangChain 1.x it is a
-      thin namespace and every piece used here lives in its own package.
-- [x] Add an MIT `LICENSE`.
-- [x] **Attribution for the documents in `data/`.** They are LangChain documentation pages,
-      about 180 KB. Verified MIT licensed via the `langchain-ai/docs` repo, so redistribution
-      with attribution is fine. `data/SOURCES.md` lists each URL, the fetch date (2026-08-04),
-      the upstream license, and a staleness warning.
-      **Settle this before the repo goes public.**
-- [x] Delete `data/sample_notes.md`. It still claims to exist "so the chatbot has something to
-      answer questions about before you add your own notes or PDF," which is no longer true.
+## Pre-release fixes (done)
 
-## Phase 3 — Run it locally too, and compare
+From a review of the whole history before publishing.
 
-The item that makes this more than a tutorial clone. Same pipeline, two backends, measured.
+- [x] **Re-indexing no longer breaks a running app.** The retriever was cached for the life
+      of the server, and `ingest.py` replaces the collection, so after re-indexing every
+      question failed with "Collection does not exist" until a restart, even though the app
+      said to reload. The retriever is now opened per question.
+- [x] **Sources stay on earlier answers.** Streamlit redraws the whole page from saved
+      history on every question, and only the answer text was saved.
+- [x] **An ingest that finds no text stops before deleting the existing index**, instead of
+      wiping it and then crashing.
+- [x] **Document text can no longer close the `<context>` block.** The bundled docs contain
+      their own example prompts with literal `</context>` tags.
+- [x] **The eval runner refuses to score an empty index**, instead of counting the "run
+      ingest.py" message as five correct refusals.
+- [x] **Offline unit tests** for everything that doesn't call a model:
+      `python -m unittest discover -s tests -v`.
 
-- [ ] **Write the eval set first.** Twenty or so question/expected-answer pairs. Without it,
-      every comparison below is a vibe. It also gives the retrieval-quality questions raised
-      during Phase 1 something real to measure against.
-- [ ] `pip install langchain-ollama` (1.1.0, compatible with the installed langchain-core),
-      install Ollama, pull a chat model and `nomic-embed-text`
-- [ ] Make the backend configurable. Keep the **embedding model and chat model as separate
-      settings**, not one switch. Local embeddings with an API chat model is a reasonable
-      combination and shows which half of RAG drives answer quality.
-- [ ] Re-ingest when switching embedding backends. Different models produce different vector
-      sizes and the old database becomes unusable.
-- [ ] Run the eval set through both. Record answer quality, speed, and cost.
-- [ ] Put the comparison table in the README.
+## Phase 3: Run it locally too, and compare (next)
 
-Ollama is free and works offline, but slower and weaker at obeying the "answer only from
-context" instruction.
+The step that makes this more than a tutorial clone: the same pipeline on two backends,
+measured.
 
-## Phase 4 — Stretch
+- [x] **Write the eval set first.** [`evals/questions.yaml`](evals/questions.yaml) holds 23
+      questions, 18 the documents answer and 5 the app must decline.
+      [`evals/run.py`](evals/run.py) checks answer text and retrieved sources separately,
+      because retrieval usually degrades before answers visibly do. *Its first real use was
+      choosing how many chunks to retrieve: k=4 scored 21/23 and k=6, 8, and 10 each scored
+      22/23, so the app moved from 4 to 6.*
+- [ ] **Find out why one question still fails at k=6.** Run `python evals/run.py` and read the
+      failure. A wrong expectation in the eval set and a real retrieval miss need different
+      fixes.
+- [ ] **Install Ollama** and pull a chat model and `nomic-embed-text`. Add `langchain-ollama`
+      to `requirements.txt`, pinned to a version compatible with the pinned `langchain-core`.
+- [ ] **Make the backend configurable, with the embedding model and chat model as separate
+      settings.** Local embeddings with an API chat model is a reasonable combination, and it
+      shows which half of RAG drives answer quality. The embedding setting must change in
+      `ingest.py` and `app.py` together.
+- [ ] **Re-ingest when switching embedding models.** Different models produce different
+      vector sizes, so an index built with one is unusable with the other.
+- [ ] **Run the eval set against each combination** and record answer quality, speed, and
+      cost.
+- [ ] **Put the comparison table in the README.**
 
-- [x] **Conversation memory.** Done 2026-08-11, and done properly rather than the cheap version
-      originally planned. `build_search_query()` makes one extra `gpt-4o-mini` call to rewrite a
-      follow-up into a standalone question *before* retrieval, because retrieval happens before
-      the model sees anything and "the second one" is useless as a search string. History is
-      capped at `MAX_HISTORY_MESSAGES = 6`.
-      *Bug found and fixed during implementation: sending the rewritten question to the
-      retriever but the raw one to the answering model made the two components resolve the same
-      pronoun differently. Right documents fetched, wrong question answered, and no error
-      anywhere. Both now receive the rewritten question.*
-      *Remaining limitation: history lives in `st.session_state`, so it resets on page refresh.*
-- [ ] **Document upload in the app.** Currently adding a document means copying a file and
-      running a terminal command. This is the gap between "works for me" and "usable by others."
-- [ ] Compare chunk sizes, now meaningful since `data/` holds real documents.
-- [ ] Support multiple collections.
+Expectation going in: Ollama is free and works offline, but slower and weaker at obeying the
+"answer only from context" instruction. The eval set's five refusal questions are there to
+measure exactly that.
 
-Not recommended: the framework-native memory route. `langchain.memory` was removed in
-LangChain 1.0 and `RunnableWithMessageHistory` warns as deprecated since langchain-core 1.3.3.
-The official path is `create_agent` plus a LangGraph checkpointer, which is a large detour.
-The hand-rolled rewriting above teaches more for this project's purposes.
+## Phase 4: Stretch
 
----
+- [x] **Conversation memory.** Follow-up questions are rewritten into standalone ones before
+      retrieval, with one extra `gpt-4o-mini` call, because retrieval happens before the
+      model sees anything and "the second one" is useless as a search string. History is
+      capped at six messages. *Bug found along the way: sending the rewritten question to
+      the retriever but the raw one to the answering model let the two resolve the same
+      pronoun differently. Right documents fetched, wrong question answered, no error
+      anywhere. Both now get the rewritten question.* History lives in the Streamlit
+      session, so it resets on page refresh.
+- [ ] **Document upload in the app.** Adding a document currently means copying a file and
+      running a terminal command. This is the gap between "works for me" and "usable by
+      others."
+- [ ] **Compare chunk sizes.** Now measurable with the eval set. Chunk size is set in
+      `ingest.py`, so each setting needs a re-ingest, which costs about a tenth of a cent
+      with the bundled documents.
+
+### Deliberately not done
+
+Framework-native memory. `langchain.memory` was removed in LangChain 1.0, and
+`RunnableWithMessageHistory` warns as deprecated since langchain-core 1.3.3. The official
+route is `create_agent` plus a LangGraph checkpointer, which is a large detour. Rewriting
+the question by hand teaches more for a project this size.
+
+## Known issues
+
+Small problems found in the 2026-10-12 review and left for later. Each is a reasonable first
+exercise.
+
+- **The eval's refusal check misfires both ways.** A correct answer with a caveat ("the
+  context does not provide details on pooling") is scored as a refusal, and refusals phrased
+  as "isn't covered" or with a curly apostrophe in "don't know" are missed. See
+  `REFUSAL_MARKERS` in `evals/run.py`.
+- **Some `must_mention` terms are weak.** Matching is by substring, so "close" satisfies
+  "lose", and one term ("store") already appears in its own question.
+- **`strip_leading_blockquote()` strips any leading blockquote**, so your own document that
+  opens with a quote or epigraph loses it.
+- **Paths are relative to the current folder.** Run the scripts from anywhere but the repo
+  root and they look for `data/` and `vectorstore/` in the wrong place. On Windows, source
+  paths use backslashes, so every `expect_source` check in the evals fails.
+- **A failed OpenAI call leaves a question without an answer.** The app shows a traceback,
+  and the unanswered question stays in the history sent with the next one.
+- **The Sources panel renders chunks as Markdown and cuts them at 800 characters**, so
+  headings appear oversized and long passages are shortened.
 
 ## Model choice
 
-Staying on `gpt-4o-mini`. No announced retirement, and it preserves `temperature=0`.
-Note for later: `langchain-openai` silently discards `temperature` for models whose name starts
-with `gpt-5`, unless the name contains `chat` or reasoning effort is `none`. Switching to a
-`gpt-5.x` model would quietly void the determinism this app relies on.
+Staying on `gpt-4o-mini`. As of 2026-10-12, OpenAI's deprecations page lists no shutdown
+date for it, and it accepts `temperature=0`, which the app relies on for repeatable answers.
+
+Worth knowing before switching: `langchain-openai` silently discards `temperature` for model
+names starting with `gpt-5`, unless the name contains `chat` or reasoning effort is `none`.
+Moving to a `gpt-5.x` model would quietly remove that determinism.
 
 ## Verification notes
 
-OpenAI pricing and retirement dates were checked once on 2026-08-04 and are single-source.
-The PDF branch of `load_documents` has still never executed; `data/` has only ever held
-Markdown. The claim that mismatched 1536-dimension embedding models fail silently is inferred
-from Chroma validating vector width only; it was not reproduced with two live models.
+What has and has not been checked, so an assumption is not mistaken for a test.
 
-Code review, 2026-08-05. No secrets in `data/` or `.env`; `.env` correctly gitignored. Tested
-rather than assumed: the docs are full of `{"configurable": {"thread_id": "1"}}` code samples
-and `ChatPromptTemplate` uses f-string syntax, so a runtime `KeyError` looked likely.
-Substitution is single-pass and braces in values stay literal. Not a bug.
+- `gpt-4o-mini` prices were re-checked on 2026-10-12 against OpenAI's model page. The
+  embedding price comes from a third-party listing. Cost figures in the README are estimates
+  from token counts, not measured bills.
+- The PDF branch of `load_documents()` has only been exercised offline with a blank PDF, never
+  with a real document through the app. The bundled corpus is all Markdown.
+- The re-indexing fix was verified offline with fake embeddings, not by re-indexing under a
+  live Streamlit server.
+- The claim that two 1536-dimension embedding models fail silently together is inferred from
+  Chroma checking only vector width. It has not been reproduced with two live models.
+- Code review, 2026-08-05: no secrets in `data/`, and `.env` is gitignored. The documents are
+  full of `{"configurable": {"thread_id": "1"}}` samples and `ChatPromptTemplate` uses
+  f-string syntax, so a runtime `KeyError` looked likely. Tested rather than assumed:
+  substitution is single-pass and braces in values stay literal. Not a bug.
