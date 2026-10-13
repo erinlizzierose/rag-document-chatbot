@@ -138,9 +138,10 @@ Drop `.md`, `.txt`, or `.pdf` files into `data/` and re-run `python ingest.py`. 
 safe and repeatable; it clears the collection before rebuilding. If you replace the bundled
 documents, the eval set will no longer apply, since its questions are about them.
 
-PDFs need a real text layer. Scanned or photographed pages have none, so the text extracts as
-empty and you get an index that silently knows nothing. PDF loading is also the least tested
-path: the bundled corpus is all Markdown.
+PDFs need a real text layer. Scanned or photographed pages have none, so their text extracts
+as empty and they are silently left out of the index. If no file in `data/` yields any text,
+`ingest.py` stops with an error and leaves the existing index alone. PDF loading is also the
+least tested path: the bundled corpus is all Markdown.
 
 ## Limitations
 

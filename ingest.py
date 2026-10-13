@@ -94,6 +94,16 @@ def main():
     )
     chunks = splitter.split_documents(documents)
 
+    # Checked before reset_collection(), which deletes the existing index. Scanned PDFs and
+    # empty files load without error but contain no text, so the splitter returns nothing.
+    # Without this, the old index was wiped and then Chroma failed on an empty add.
+    if not chunks:
+        raise SystemExit(
+            f"No text could be extracted from the files in {DATA_DIR}/. Scanned PDFs have no "
+            "text layer, and empty files have nothing to index. The existing index was left "
+            "untouched."
+        )
+
     vectorstore = Chroma(
         persist_directory=str(VECTORSTORE_DIR),
         embedding_function=OpenAIEmbeddings(model=EMBEDDING_MODEL),
