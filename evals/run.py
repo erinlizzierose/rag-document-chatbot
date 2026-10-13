@@ -104,6 +104,14 @@ def main():
 
     for question in questions:
         answer, docs, _ = answer_question(question["question"])
+
+        # An empty index turns every answer into the "run ingest.py" message, which contains a
+        # refusal marker, so the refusal questions would pass. Stop rather than print a score
+        # that means nothing.
+        if not docs:
+            print("The index is empty. Run `python ingest.py` first, then try again.")
+            return 1
+
         passed, problems = grade(question, answer, docs)
 
         mark = "PASS" if passed else "FAIL"

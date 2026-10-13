@@ -1,8 +1,13 @@
 import importlib.util
+import io
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 from langchain_core.documents import Document
+
+import app
 
 ROOT = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location("eval_run", ROOT / "evals" / "run.py")
@@ -40,6 +45,28 @@ class GradeTest(unittest.TestCase):
         passed, problems = eval_run.grade(question, "Answer.", [doc_from("data/z.md")])
         self.assertFalse(passed)
         self.assertEqual(problems, ["never retrieved data/a.md"])
+
+
+class MainTest(unittest.TestCase):
+    def run_main(self, answer_result, argv):
+        output = io.StringIO()
+        with mock.patch.object(eval_run, "answer_question", return_value=answer_result), \
+             mock.patch.object(eval_run.sys, "argv", argv), \
+             redirect_stdout(output):
+            exit_code = eval_run.main()
+        return exit_code, output.getvalue()
+
+    def test_empty_index_stops_instead_of_scoring(self):
+        exit_code, output = self.run_main((app.NO_INDEX_MESSAGE, [], "q"), ["run.py"])
+        self.assertEqual(exit_code, 1)
+        self.assertIn("index is empty", output)
+        self.assertNotIn("PASS", output)
+
+    def test_refusal_questions_with_retrieved_docs_are_still_graded(self):
+        result = ("I do not know.", [doc_from("data/langchain-persistence.md")], "q")
+        exit_code, output = self.run_main(result, ["run.py", "refuse"])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(output.count("PASS"), 5)
 
 
 if __name__ == "__main__":

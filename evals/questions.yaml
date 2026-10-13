@@ -9,8 +9,9 @@
 #   question      asked exactly as written, with no conversation history
 #   must_mention  substrings that all have to appear in the answer, matched case-insensitively
 #   should_refuse true if the corpus genuinely does not cover this and the app must say so
-#   expect_source a file the answer should have retrieved from, checked separately from the
-#                 text so you can see retrieval drift even while answers still pass
+#   expect_source a file the answer should have retrieved from, or a list of files where any
+#                 one counts. Checked separately from the text so you can see retrieval
+#                 drift even while answers still pass
 #
 # Keep must_mention short. Two or three load-bearing terms catch regressions; a long list just
 # fails whenever the model rephrases something, and a suite that cries wolf gets ignored.
@@ -143,7 +144,7 @@
 
 # --- Must refuse: not covered by the corpus ---
 #
-# Half of what this app does is declining. Retrieval always returns four chunks, because
+# Half of what this app does is declining. Retrieval always returns six chunks, because
 # similarity search has no concept of "no match", so these questions get just as much context
 # as the real ones. Only the prompt stops the model answering from it.
 
