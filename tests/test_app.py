@@ -18,5 +18,21 @@ class DescribeSourceTest(unittest.TestCase):
         self.assertEqual(app.describe_source(Document("x")), "unknown source")
 
 
+class SourceEntriesTest(unittest.TestCase):
+    def test_each_doc_becomes_a_label_and_text(self):
+        doc = Document("Use a checkpointer.", metadata={"source": "data/a.pdf", "page": 2})
+        self.assertEqual(
+            app.source_entries([doc]),
+            [{"label": "data/a.pdf, page 3", "text": "Use a checkpointer."}],
+        )
+
+    def test_long_chunks_are_cut_to_800_characters(self):
+        doc = Document("x" * 1000, metadata={"source": "data/a.md"})
+        self.assertEqual(len(app.source_entries([doc])[0]["text"]), 800)
+
+    def test_no_docs_gives_no_entries(self):
+        self.assertEqual(app.source_entries([]), [])
+
+
 if __name__ == "__main__":
     unittest.main()

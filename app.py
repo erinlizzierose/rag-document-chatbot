@@ -117,6 +117,27 @@ def format_docs(docs):
     )
 
 
+def source_entries(docs):
+    """What the Sources panel shows for each chunk, as plain data that can be kept in history.
+
+    Streamlit redraws the whole conversation from session state on every question. Keeping
+    only the answer text there made the Sources panel vanish from every earlier answer.
+    """
+    return [
+        {"label": describe_source(doc), "text": doc.page_content[:800]}
+        for doc in docs
+    ]
+
+
+def render_sources(sources, searched_for):
+    with st.expander("Sources"):
+        if searched_for:
+            st.caption(f"Searched for: *{searched_for}*")
+        for index, source in enumerate(sources, start=1):
+            st.markdown(f"**{index}. {source['label']}**")
+            st.write(source["text"])
+
+
 def load_retriever():
     # Opened fresh for every question rather than cached with st.cache_resource. ingest.py
     # deletes the collection and creates a new one, so a cached handle outlives it: after
@@ -199,6 +220,8 @@ def main():
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+            if message.get("sources"):
+                render_sources(message["sources"], message.get("searched_for"))
 
     question = st.chat_input("Ask a question about your document")
     if not question:
@@ -215,17 +238,21 @@ def main():
         with st.spinner("Searching the document..."):
             answer, docs, search_query = answer_question(question, history)
 
+        sources = source_entries(docs)
+        searched_for = search_query if search_query != question else None
+
         st.markdown(answer)
+        if sources:
+            render_sources(sources, searched_for)
 
-        if docs:
-            with st.expander("Sources"):
-                if search_query != question:
-                    st.caption(f"Searched for: *{search_query}*")
-                for index, doc in enumerate(docs, start=1):
-                    st.markdown(f"**{index}. {describe_source(doc)}**")
-                    st.write(doc.page_content[:800])
-
-    st.session_state.messages.append({"role": "assistant", "content": answer})
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": answer,
+            "sources": sources,
+            "searched_for": searched_for,
+        }
+    )
 
 
 if __name__ == "__main__":

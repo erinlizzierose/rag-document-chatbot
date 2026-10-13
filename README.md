@@ -1,7 +1,7 @@
 # Document Chatbot
 
-Ask questions about your own documents and get answers grounded in them, with the exact
-source passages shown alongside every response.
+Ask questions about your own documents and get answers grounded in them, with the source
+passages it used shown alongside every response.
 
 Built to learn how retrieval augmented generation actually works, rather than to wrap an
 API and call it a chatbot.
