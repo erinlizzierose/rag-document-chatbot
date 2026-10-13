@@ -20,8 +20,8 @@ import yaml
 # app.py is one directory up. Imported before anything touches it so the path is set first.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Streamlit warns on every cached call when it runs outside a script context. It is working
-# fine here; the warning is just noise that would bury the results.
+# Importing app.py imports Streamlit, which can log warnings when used outside `streamlit run`.
+# Nothing is wrong when it does; the warnings are just noise that would bury the results.
 logging.getLogger("streamlit").setLevel(logging.ERROR)
 
 from app import answer_question, describe_source  # noqa: E402

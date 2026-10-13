@@ -117,8 +117,12 @@ def format_docs(docs):
     )
 
 
-@st.cache_resource
 def load_retriever():
+    # Opened fresh for every question rather than cached with st.cache_resource. ingest.py
+    # deletes the collection and creates a new one, so a cached handle outlives it: after
+    # re-indexing, every question failed with "Collection does not exist" until the server was
+    # restarted, and reloading the page did not help because the cache is shared across
+    # sessions. Opening the local store is cheap next to the model call that follows.
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
     vectorstore = Chroma(
         persist_directory=VECTORSTORE_DIR,
