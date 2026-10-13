@@ -8,7 +8,7 @@ scope in app.py and why answer_question() returns the retrieved documents alongs
 this script needs both, and neither is reachable through Streamlit.
 
 Each question costs one embedding call and one chat call. History is not passed, so the rewrite
-call never fires. The full set runs for well under a cent.
+call never fires. The full set runs for under a cent.
 """
 
 import logging

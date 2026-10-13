@@ -12,8 +12,8 @@ Last updated 2026-10-12.
 The app works end to end. It answers questions from the documents in `data/`, shows the
 passages it used, declines when the documents don't cover something, and handles follow-up
 questions by rewriting them to stand alone before searching. An eval set of 23 questions
-measures it, and the current settings pass 22. Offline unit tests cover the parts that don't
-call a model.
+measures it, and the current settings scored 22 of 23 when last run (2026-09-14). Offline
+unit tests cover the parts that don't call a model.
 
 Next is running the same pipeline against a local model and comparing the two.
 
@@ -39,7 +39,8 @@ Next is running the same pipeline against a local model and comparing the two.
       `text-embedding-ada-002`, has the same 1536 dimensions as `text-embedding-3-small`, so
       a mismatch raises nothing and quietly returns bad matches.
 - [x] **Guard the empty index.** An empty store returns no matches rather than an error. The
-      app checks for that and tells you to run `ingest.py`, before paying for a model call.
+      app checks for that and tells you to run `ingest.py`, before paying for the answer
+      call.
 - [x] **Friendlier missing-key error.** The app checks for `OPENAI_API_KEY` at startup
       instead of failing with a traceback on the first question.
 - [x] **Move retrieved text out of the system message.** Retrieved chunks sit in the user

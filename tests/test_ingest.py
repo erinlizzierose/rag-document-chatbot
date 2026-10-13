@@ -1,3 +1,5 @@
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -33,7 +35,9 @@ class IngestMainTest(unittest.TestCase):
                  mock.patch.object(ingest, "OpenAIEmbeddings"):
                 # Kept on self so a test can inspect it even when main() raises.
                 self.chroma = chroma
-                ingest.main()
+                # main() prints progress lines; keep them out of the test output.
+                with contextlib.redirect_stdout(io.StringIO()):
+                    ingest.main()
             return chroma
 
     def test_stops_before_touching_the_index_when_no_text_is_found(self):

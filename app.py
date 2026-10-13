@@ -118,7 +118,9 @@ def escape_context_tags(text):
     Left alone, a chunk containing "</context>" ends the block from the model's point of view,
     and anything after it reads as if the user wrote it rather than a document.
     """
-    return re.sub(r"<(/?)context>", r"&lt;\1context&gt;", text, flags=re.IGNORECASE)
+    # Also catches spaced and attributed forms such as "</context >" and "<context id=1>".
+    # The \b keeps words like <contextual> alone.
+    return re.sub(r"<\s*(/?)\s*context\b[^>]*>", r"&lt;\1context&gt;", text, flags=re.IGNORECASE)
 
 
 def format_docs(docs):

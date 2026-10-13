@@ -78,7 +78,13 @@ RETRIEVAL_K=4 python evals/run.py # try a different number of retrieved chunks
 
 The number of chunks retrieved was chosen this way. Sweeping it scored 21/23 at k=4 and
 22/23 at k=6, 8, and 10, so 6 is where the gain arrives and where it stops. A full run costs
-well under a cent.
+under a cent.
+
+The unit tests need no API key. Run them from the repo root:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## Cost
 
@@ -134,6 +140,7 @@ app.py             Streamlit chat interface and the question-answering logic
 ingest.py          Document loading and indexing
 data/              Documents to index, plus SOURCES.md (attribution, not indexed)
 evals/             Question set and the script that scores the app against it
+tests/             Offline unit tests for the parts that don't call a model
 docs/              Screenshot for this README
 vectorstore/       Local Chroma database, created by ingest.py, gitignored
 ROADMAP.md         Planned work and known issues
