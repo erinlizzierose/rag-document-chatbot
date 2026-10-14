@@ -5,14 +5,14 @@ building one small enough to read in an afternoon. This file tracks what has bee
 what is next, and what was learned along the way. For setup and usage, see the
 [README](README.md).
 
-Last updated 2026-10-12.
+Last updated 2026-10-14.
 
 ## Where it stands
 
 The app works end to end. It answers questions from the documents in `data/`, shows the
 passages it used, declines when the documents don't cover something, and handles follow-up
 questions by rewriting them to stand alone before searching. An eval set of 23 questions
-measures it, and the current settings scored 22 of 23 when last run (2026-09-14). Offline
+measures it, and the current settings scored 22 of 23 when last run (2026-10-13). Offline
 unit tests cover the parts that don't call a model.
 
 Next is running the same pipeline against a local model and comparing the two.
@@ -97,9 +97,16 @@ measured.
       because retrieval usually degrades before answers visibly do. *Its first real use was
       choosing how many chunks to retrieve: k=4 scored 21/23 and k=6, 8, and 10 each scored
       22/23, so the app moved from 4 to 6.*
-- [ ] **Find out why one question still fails at k=6.** Run `python evals/run.py` and read the
-      failure. A wrong expectation in the eval set and a real retrieval miss need different
-      fixes.
+- [x] **Find out why one question still fails at k=6.** It is `chat-model-return-type`, and it
+      is a real retrieval miss, not a wrong expectation: `langchain-v1-migration.md` says the
+      return type changed from `BaseMessage` to `AIMessage`, but five of the six retrieved
+      chunks came from `langchain-add-memory.md`. *The model then answered confidently from an
+      unrelated code snippet instead of declining, so a near-miss in retrieval became a wrong
+      answer rather than an honest "I don't know."* Re-run on 2026-10-13 after the pre-release
+      fixes: still 22/23, all five refusals held.
+- [ ] **Fix that retrieval miss, measured with the eval.** Candidates: smaller chunks (the
+      answer is a short section inside a 45 KB document), and a stricter prompt that declines
+      when the context does not actually answer the question.
 - [ ] **Install Ollama** and pull a chat model and `nomic-embed-text`. Add `langchain-ollama`
       to `requirements.txt`, pinned to a version compatible with the pinned `langchain-core`.
 - [ ] **Make the backend configurable, with the embedding model and chat model as separate
