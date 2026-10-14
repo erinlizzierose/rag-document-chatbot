@@ -46,6 +46,17 @@ class GradeTest(unittest.TestCase):
         self.assertFalse(passed)
         self.assertEqual(problems, ["never retrieved data/a.md"])
 
+    def test_a_nested_list_accepts_any_one_of_its_terms(self):
+        question = {"must_mention": [["prune", "pruning", "delete"]]}
+        passed, _ = eval_run.grade(question, "Try pruning old checkpoints.", [])
+        self.assertTrue(passed)
+
+    def test_a_nested_list_fails_when_none_of_its_terms_appear(self):
+        question = {"must_mention": [["prune", "delete"]]}
+        passed, problems = eval_run.grade(question, "Restart the server.", [])
+        self.assertFalse(passed)
+        self.assertEqual(problems, ["missing: prune or delete"])
+
 
 class MainTest(unittest.TestCase):
     def run_main(self, answer_result, argv):

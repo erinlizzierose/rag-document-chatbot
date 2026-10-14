@@ -7,7 +7,9 @@
 # Fields:
 #   id            short slug, so a failure has a name you can talk about
 #   question      asked exactly as written, with no conversation history
-#   must_mention  substrings that all have to appear in the answer, matched case-insensitively
+#   must_mention  substrings that all have to appear in the answer, matched case-insensitively.
+#                 An entry can be a list of alternatives where any one counts, for advice the
+#                 documents phrase more than one way
 #   should_refuse true if the corpus genuinely does not cover this and the app must say so
 #   expect_source a file the answer should have retrieved from, or a list of files where any
 #                 one counts. Checked separately from the text so you can see retrieval
@@ -47,7 +49,9 @@
 
 - id: checkpoints-unbounded
   question: My checkpoints keep growing over long conversations. What does the documentation suggest?
-  must_mention: ["delete"]
+  # The doc's fix says "prune old checkpoints"; "delete" appears only in a code comment. Requiring
+  # "delete" alone passed by luck at 1000-character chunks and failed a correct paraphrase at 750.
+  must_mention: [["prune", "pruning", "delete"]]
   should_refuse: false
   expect_source: data/langchain-persistence.md
 

@@ -65,11 +65,14 @@ def grade(question, answer, docs):
             problems.append("answered a question it should have declined")
         return not problems, problems
 
-    missing = [
-        term
-        for term in question.get("must_mention", [])
-        if term.lower() not in answer.lower()
-    ]
+    # Each entry is one term, or a list of alternatives where any one counts. The list form is
+    # for an answer the documents phrase more than one way: requiring one exact word fails a
+    # correct answer that paraphrases, the same way requiring one exact source file would.
+    missing = []
+    for term in question.get("must_mention", []):
+        options = term if isinstance(term, list) else [term]
+        if not any(option.lower() in answer.lower() for option in options):
+            missing.append(" or ".join(options))
     if missing:
         problems.append("missing: " + ", ".join(missing))
 
