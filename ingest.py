@@ -25,6 +25,18 @@ EXCLUDED_FILENAMES = {"SOURCES.md"}
 # mismatch raises no error at all. It just silently returns bad matches.
 EMBEDDING_MODEL = "text-embedding-3-small"
 
+# A chunk is embedded as one vector, so a short section that shares its chunk with unrelated
+# text gets an embedding that mostly describes the unrelated text. At 1000 characters the
+# migration guide's short "return type" section shared a chunk with import examples and
+# a Python 3.9 note, and ranked 15th for a question asking about it almost word for word.
+#
+# Swept on 2026-10-14, retrieval only: 1000 left 17/18 answerable questions with the right
+# text in the top 6 chunks; 750 and 500 got 18/18; 300 dropped to 16/18 by splitting other
+# answers across chunks. 750 is the largest size that fixes it, which keeps the most context
+# per retrieved chunk. Changing these means re-running ingest.py.
+CHUNK_SIZE = 750
+CHUNK_OVERLAP = 150
+
 
 def strip_leading_blockquote(text):
     """Drop a blockquote block at the very top of a document.
@@ -89,8 +101,8 @@ def main():
 
     documents = load_documents()
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
     )
     chunks = splitter.split_documents(documents)
 

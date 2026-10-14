@@ -25,7 +25,7 @@ to ask about straight away. See [data/SOURCES.md](data/SOURCES.md) for where the
 ## How it works
 
 1. `ingest.py` reads every supported file in `data/`
-2. Splits them into overlapping ~1000 character chunks
+2. Splits them into overlapping ~750 character chunks
 3. Converts each chunk to an embedding, a vector capturing its meaning
 4. Stores chunks and vectors in a local Chroma database
 5. In `app.py`, if there is earlier conversation, the model first rewrites your question so
@@ -77,8 +77,9 @@ RETRIEVAL_K=4 python evals/run.py # try a different number of retrieved chunks
 ```
 
 The number of chunks retrieved was chosen this way. Sweeping it scored 21/23 at k=4 and
-22/23 at k=6, 8, and 10, so 6 is where the gain arrives and where it stops. A full run costs
-under a cent.
+22/23 at k=6, 8, and 10, so 6 is where the gain arrives and where it stops. Chunk size was
+chosen the same way: at 1000 characters one answer ranked 15th and was never retrieved, and
+750 brought it to first and the full set to 23/23. A full run costs under a cent.
 
 The unit tests need no API key. Run them from the repo root:
 
@@ -111,6 +112,18 @@ with a boilerplate header addressed to an LLM. It was the only text in the corpu
 documentation in the abstract, so it beat real content on precisely the broad questions where
 a wasted slot hurts most, taking 2 of 4 slots (the app retrieved 4 at the time). Stripping
 it changed the answers noticeably.
+
+**A chunk's embedding describes everything in the chunk, not its best sentence.** Asked what
+changed about "the return type of chat model invocation", nearly the documentation's exact
+words, retrieval still missed: the answer was a short section sharing a 1000-character chunk
+with import examples and a Python version note, so the chunk's vector mostly described those.
+It ranked 15th. Stripping links and markup made it worse, because the chunk boundaries moved
+and pushed the answer behind even more unrelated code. Smaller chunks fixed it. Going too small
+(300) broke two other answers by splitting them across chunks.
+
+**A passing eval check can be passing by luck.** One question required the word "delete",
+which the documents use only in a code comment; their actual advice is to "prune". It passed
+for weeks, then failed a correct answer the moment chunking changed which text the model saw.
 
 **Two embedding models with the same vector size fail silently.** The old default,
 `text-embedding-ada-002`, and `text-embedding-3-small` are both 1536 dimensions. Embedding

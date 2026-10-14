@@ -12,7 +12,7 @@ Last updated 2026-10-14.
 The app works end to end. It answers questions from the documents in `data/`, shows the
 passages it used, declines when the documents don't cover something, and handles follow-up
 questions by rewriting them to stand alone before searching. An eval set of 23 questions
-measures it, and the current settings scored 22 of 23 when last run (2026-10-13). Offline
+measures it, and the current settings scored 23 of 23 when last run (2026-10-14). Offline
 unit tests cover the parts that don't call a model.
 
 Next is running the same pipeline against a local model and comparing the two.
@@ -104,9 +104,16 @@ measured.
       unrelated code snippet instead of declining, so a near-miss in retrieval became a wrong
       answer rather than an honest "I don't know."* Re-run on 2026-10-13 after the pre-release
       fixes: still 22/23, all five refusals held.
-- [ ] **Fix that retrieval miss, measured with the eval.** Candidates: smaller chunks (the
-      answer is a short section inside a 45 KB document), and a stricter prompt that declines
-      when the context does not actually answer the question.
+- [x] **Fix that retrieval miss, measured with the eval.** The answer chunk ranked 15th
+      because the short section shared a 1000-character chunk with unrelated text. Tested one
+      change at a time on retrieval alone: stripping links and markup made it worse (rank 42,
+      the boundaries shifted), dropping duplicate chunks barely helped (rank 12), and smaller
+      chunks fixed it (rank 1). Chunk size is now 750. *The fix exposed an eval check that had
+      been passing by luck: `checkpoints-unbounded` required "delete", but the documents say
+      "prune". `must_mention` entries can now be a list of alternatives.* 23/23 on 2026-10-14.
+- [ ] **Make the prompt decline when the context does not actually answer.** With the wrong
+      chunks, the model answered from an unrelated code snippet instead of saying it did not
+      know. Retrieval no longer triggers that here, so it needs a question built to test it.
 - [ ] **Install Ollama** and pull a chat model and `nomic-embed-text`. Add `langchain-ollama`
       to `requirements.txt`, pinned to a version compatible with the pinned `langchain-core`.
 - [ ] **Make the backend configurable, with the embedding model and chat model as separate
@@ -136,9 +143,9 @@ measure exactly that.
 - [ ] **Document upload in the app.** Adding a document currently means copying a file and
       running a terminal command. This is the gap between "works for me" and "usable by
       others."
-- [ ] **Compare chunk sizes.** Now measurable with the eval set. Chunk size is set in
-      `ingest.py`, so each setting needs a re-ingest, which costs about a tenth of a cent
-      with the bundled documents.
+- [x] **Compare chunk sizes.** Done while fixing the Phase 3 retrieval miss, on retrieval
+      alone: 1000 left 17/18 answerable questions with the right text in the top 6 chunks,
+      750 and 500 got 18/18, and 300 dropped to 16/18. Settled on 750, the largest that works.
 
 ### Deliberately not done
 
