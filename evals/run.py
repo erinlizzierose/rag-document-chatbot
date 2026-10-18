@@ -12,6 +12,7 @@ call never fires. The full set runs for under a cent.
 """
 
 import logging
+import re
 import sys
 from pathlib import Path
 
@@ -38,17 +39,36 @@ REFUSAL_MARKERS = (
     "don't know",
     "not in the context",
     "not contain",
+    "doesn't contain",
     "no information",
     "does not provide",
+    "doesn't provide",
     "not provided",
+    "not covered",
+    "isn't covered",
+    "does not mention",
+    "doesn't mention",
     "cannot answer",
+    "can't answer",
     "could not find",
+    "couldn't find",
 )
 
 
 def is_refusal(answer):
-    lowered = answer.lower()
+    # Models write apostrophes as either ' or the curly ’, and "don’t know" missed every marker.
+    lowered = answer.lower().replace("’", "'")
     return any(marker in lowered for marker in REFUSAL_MARKERS)
+
+
+def mentions(answer, term):
+    """True if term appears at the start of a word in answer, ignoring case.
+
+    Anchored at the start of a word only. Plain substring matching let "lose" pass on "close";
+    anchoring both ends would fail "embed" on "embedding" and "trim" on "trimming", which are
+    exactly the variations a correct answer uses.
+    """
+    return re.search(r"\b" + re.escape(term), answer, re.IGNORECASE) is not None
 
 
 def grade(question, answer, docs):
@@ -71,13 +91,16 @@ def grade(question, answer, docs):
     missing = []
     for term in question.get("must_mention", []):
         options = term if isinstance(term, list) else [term]
-        if not any(option.lower() in answer.lower() for option in options):
+        if not any(mentions(answer, option) for option in options):
             missing.append(" or ".join(options))
     if missing:
         problems.append("missing: " + ", ".join(missing))
-
-    if is_refusal(answer):
-        problems.append("declined a question the documents cover")
+        # Only reported alongside missing terms. Correct answers often add a caveat about what
+        # the context leaves out ("the context does not provide details on pooling"), and the
+        # marker list cannot tell that apart from a refusal. An answer with every required term
+        # in it answered the question, whatever else it says.
+        if is_refusal(answer):
+            problems.append("declined a question the documents cover")
 
     # One string, or a list when more than one document genuinely answers the question. Any
     # one of them counts: requiring a specific file where two are equally correct fails good

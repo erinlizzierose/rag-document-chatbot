@@ -7,9 +7,10 @@
 # Fields:
 #   id            short slug, so a failure has a name you can talk about
 #   question      asked exactly as written, with no conversation history
-#   must_mention  substrings that all have to appear in the answer, matched case-insensitively.
-#                 An entry can be a list of alternatives where any one counts, for advice the
-#                 documents phrase more than one way
+#   must_mention  terms that all have to appear in the answer, matched case-insensitively at the
+#                 start of a word, so "embed" matches "embedding" but "lose" does not match
+#                 "close". An entry can be a list of alternatives where any one counts, for
+#                 advice the documents phrase more than one way
 #   should_refuse true if the corpus genuinely does not cover this and the app must say so
 #   expect_source a file the answer should have retrieved from, or a list of files where any
 #                 one counts. Checked separately from the text so you can see retrieval
@@ -89,7 +90,8 @@
 
 - id: trim-vs-summarize
   question: What is the downside of trimming or deleting messages compared with summarizing them?
-  must_mention: ["lose"]
+  # The doc says you "may lose information". Any form of the word counts.
+  must_mention: [["lose", "lost", "loss"]]
   should_refuse: false
   expect_source: data/langchain-short-term-memory.md
 
@@ -97,7 +99,10 @@
 
 - id: long-term-memory-store
   question: How do I store information that should persist across different conversation threads?
-  must_mention: ["store"]
+  # "store" alone was in the question itself, so it passed on any answer that repeated it.
+  # These name an actual store or how one is organised, and each appears in both expected files
+  # except PostgresStore and BaseStore, which only add-memory.md uses.
+  must_mention: [["InMemoryStore", "PostgresStore", "BaseStore", "namespace"]]
   should_refuse: false
   # Two files answer this one properly: add-memory.md explains stores at length, and
   # persistence.md covers the same ground in its checkpointer-vs-store table. Pinning it to a

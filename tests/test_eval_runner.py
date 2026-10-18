@@ -57,6 +57,35 @@ class GradeTest(unittest.TestCase):
         self.assertFalse(passed)
         self.assertEqual(problems, ["missing: prune or delete"])
 
+    def test_a_curly_apostrophe_refusal_counts(self):
+        self.assertTrue(eval_run.is_refusal("I don’t know."))
+
+    def test_isnt_covered_counts_as_a_refusal(self):
+        self.assertTrue(eval_run.is_refusal("That isn't covered in the documents."))
+
+    def test_a_caveat_on_a_correct_answer_is_not_a_decline(self):
+        question = {"must_mention": ["checkpointer"]}
+        answer = "Use a checkpointer. The context does not provide details on pooling."
+        self.assertEqual(eval_run.grade(question, answer, []), (True, []))
+
+    def test_a_refusal_on_an_answerable_question_still_fails(self):
+        question = {"must_mention": ["checkpointer"]}
+        passed, problems = eval_run.grade(question, "I do not know.", [])
+        self.assertFalse(passed)
+        self.assertEqual(
+            problems, ["missing: checkpointer", "declined a question the documents cover"]
+        )
+
+    def test_a_term_does_not_match_inside_another_word(self):
+        question = {"must_mention": ["lose"]}
+        passed, _ = eval_run.grade(question, "Close the connection first.", [])
+        self.assertFalse(passed)
+
+    def test_a_term_matches_the_start_of_a_longer_word(self):
+        question = {"must_mention": ["embed"]}
+        passed, _ = eval_run.grade(question, "Pass an embedding function.", [])
+        self.assertTrue(passed)
+
 
 class MainTest(unittest.TestCase):
     def run_main(self, answer_result, argv):
