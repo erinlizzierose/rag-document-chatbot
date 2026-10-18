@@ -5,15 +5,16 @@ building one small enough to read in an afternoon. This file tracks what has bee
 what is next, and what was learned along the way. For setup and usage, see the
 [README](README.md).
 
-Last updated 2026-10-14.
+Last updated 2026-10-18.
 
 ## Where it stands
 
 The app works end to end. It answers questions from the documents in `data/`, shows the
 passages it used, declines when the documents don't cover something, and handles follow-up
-questions by rewriting them to stand alone before searching. An eval set of 23 questions
-measures it, and the current settings scored 23 of 23 when last run (2026-10-14). Offline
-unit tests cover the parts that don't call a model.
+questions by rewriting them to stand alone before searching. An eval set of 26 questions
+measures it, and the current settings scored 25 of 26 when last run (2026-10-18). The one
+miss is `long-term-memory-store`, explained under Phase 3. Offline unit tests cover the
+parts that don't call a model.
 
 Next is running the same pipeline against a local model and comparing the two.
 
@@ -91,12 +92,18 @@ From a review of the whole history before publishing.
 The step that makes this more than a tutorial clone: the same pipeline on two backends,
 measured.
 
-- [x] **Write the eval set first.** [`evals/questions.yaml`](evals/questions.yaml) holds 23
-      questions, 18 the documents answer and 5 the app must decline.
+- [x] **Write the eval set first.** [`evals/questions.yaml`](evals/questions.yaml) holds 26
+      questions, 18 the documents answer and 8 the app must decline.
       [`evals/run.py`](evals/run.py) checks answer text and retrieved sources separately,
       because retrieval usually degrades before answers visibly do. *Its first real use was
       choosing how many chunks to retrieve: k=4 scored 21/23 and k=6, 8, and 10 each scored
-      22/23, so the app moved from 4 to 6.*
+      22/23, so the app moved from 4 to 6.* The grading was later tightened because two
+      checks were too easy to pass: terms are now matched at the start of a word, so "close"
+      no longer satisfies "lose", and a refusal only counts against an answerable question
+      when its terms are also missing, so a correct answer with a caveat is not marked wrong.
+      Under the stricter terms `long-term-memory-store` now fails (25/26 on 2026-10-18). It
+      had been passing only because "store" appears in its own question. The answer names no
+      store because `langchain-add-memory.md` is not retrieved for that question.
 - [x] **Find out why one question still fails at k=6.** It is `chat-model-return-type`, and it
       is a real retrieval miss, not a wrong expectation: `langchain-v1-migration.md` says the
       return type changed from `BaseMessage` to `AIMessage`, but five of the six retrieved
@@ -111,9 +118,12 @@ measured.
       chunks fixed it (rank 1). Chunk size is now 750. *The fix exposed an eval check that had
       been passing by luck: `checkpoints-unbounded` required "delete", but the documents say
       "prune". `must_mention` entries can now be a list of alternatives.* 23/23 on 2026-10-14.
-- [ ] **Make the prompt decline when the context does not actually answer.** With the wrong
+- [x] **Make the prompt decline when the context does not actually answer.** With the wrong
       chunks, the model answered from an unrelated code snippet instead of saying it did not
-      know. Retrieval no longer triggers that here, so it needs a question built to test it.
+      know. Retrieval no longer triggers that here, so three near-miss questions now test it:
+      topics the documents discuss at length but never answer. `gpt-4o-mini` declines all
+      three with the current prompt, so the prompt was left alone. The local model run is the
+      real test.
 - [ ] **Install Ollama** and pull a chat model and `nomic-embed-text`. Add `langchain-ollama`
       to `requirements.txt`, pinned to a version compatible with the pinned `langchain-core`.
 - [ ] **Make the backend configurable, with the embedding model and chat model as separate
@@ -127,7 +137,7 @@ measured.
 - [ ] **Put the comparison table in the README.**
 
 Expectation going in: Ollama is free and works offline, but slower and weaker at obeying the
-"answer only from context" instruction. The eval set's five refusal questions are there to
+"answer only from context" instruction. The eval set's eight refusal questions are there to
 measure exactly that.
 
 ## Phase 4: Stretch
@@ -159,12 +169,6 @@ the question by hand teaches more for a project this size.
 Small problems found in the 2026-10-12 review and left for later. Each is a reasonable first
 exercise.
 
-- **The eval's refusal check misfires both ways.** A correct answer with a caveat ("the
-  context does not provide details on pooling") is scored as a refusal, and refusals phrased
-  as "isn't covered" or with a curly apostrophe in "don't know" are missed. See
-  `REFUSAL_MARKERS` in `evals/run.py`.
-- **Some `must_mention` terms are weak.** Matching is by substring, so "close" satisfies
-  "lose", and one term ("store") already appears in its own question.
 - **`strip_leading_blockquote()` strips any leading blockquote**, so your own document that
   opens with a quote or epigraph loses it.
 - **Paths are relative to the current folder.** Run the scripts from anywhere but the repo

@@ -64,8 +64,9 @@ required step, not an optional one. The app will tell you if you skip it.
 
 ## Evaluating it
 
-`evals/questions.yaml` holds 23 questions: 18 the documents answer and 5 they don't, which
-the app must decline. `evals/run.py` asks each one and checks two things separately: whether
+`evals/questions.yaml` holds 26 questions: 18 the documents answer and 8 they don't, which
+the app must decline, three of them near misses on topics the documents discuss without
+answering. `evals/run.py` asks each one and checks two things separately: whether
 the answer mentions the key terms, and whether retrieval found the right source file.
 Retrieval usually gets worse before answers visibly do, so that second check is the early
 warning.

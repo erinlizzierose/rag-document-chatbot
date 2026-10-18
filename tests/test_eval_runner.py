@@ -5,6 +5,8 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
+import yaml
+
 from langchain_core.documents import Document
 
 import app
@@ -87,6 +89,15 @@ class GradeTest(unittest.TestCase):
         self.assertTrue(passed)
 
 
+class QuestionSetTest(unittest.TestCase):
+    def test_every_refusal_question_can_be_selected_with_the_refuse_filter(self):
+        # `python evals/run.py refuse` is how you check refusals alone after a prompt change.
+        questions = yaml.safe_load(eval_run.QUESTIONS_FILE.read_text())
+        for question in questions:
+            if question.get("should_refuse"):
+                self.assertTrue(question["id"].startswith("refuse-"), question["id"])
+
+
 class MainTest(unittest.TestCase):
     def run_main(self, answer_result, argv):
         output = io.StringIO()
@@ -106,7 +117,9 @@ class MainTest(unittest.TestCase):
         result = ("I do not know.", [doc_from("data/langchain-persistence.md")], "q")
         exit_code, output = self.run_main(result, ["run.py", "refuse"])
         self.assertEqual(exit_code, 0)
-        self.assertEqual(output.count("PASS"), 5)
+        questions = yaml.safe_load(eval_run.QUESTIONS_FILE.read_text())
+        refusals = [q for q in questions if "refuse" in q["id"]]
+        self.assertEqual(output.count("PASS"), len(refusals))
 
 
 if __name__ == "__main__":

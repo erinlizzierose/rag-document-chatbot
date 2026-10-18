@@ -183,3 +183,28 @@
   # size "this chatbot" uses, which the model reasonably read as the chatbot in the docs and
   # answered from a LangChain code sample. That was an ambiguous question, not a bad refusal.
   # Streamlit appears nowhere in the LangChain documentation, so this version has one reading.
+
+# --- Must refuse: near misses ---
+#
+# The refusals above are off topic, and any model declines those easily. These ask about
+# something the documents discuss at length but never answer, which is where a model fills the
+# gap from its own training or from a code sample written for something else. That is what
+# happened to chat-model-return-type before the chunk size was fixed: the wrong chunks came back
+# and the model answered from an unrelated snippet instead of declining.
+
+- id: refuse-near-miss-encrypt-checkpoints
+  question: How do I encrypt the checkpoints that PostgresSaver stores?
+  should_refuse: true
+  # PostgresSaver setup appears throughout persistence.md and add-memory.md. Nothing in data/
+  # mentions encryption.
+
+- id: refuse-near-miss-redis-version
+  question: Which Redis server version does RedisSaver require?
+  should_refuse: true
+  # add-memory.md shows RedisSaver setup and a connection string, never a server version.
+
+- id: refuse-near-miss-embeddings-return-type
+  question: What changed about the return type of embed_query in v1?
+  should_refuse: true
+  # Built to mirror chat-model-return-type. The migration guide covers the chat model return
+  # type and lists embeddings modules, but never mentions embed_query.
