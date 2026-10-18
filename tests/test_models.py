@@ -84,10 +84,23 @@ class SetupProblemTest(unittest.TestCase):
             self.assertIsNone(models.setup_problem())
 
     def test_ollama_not_running_is_reported(self):
-        failure = ValueError("Failed to connect to Ollama.")
+        # The ollama package raises the builtin ConnectionError, and langchain_ollama lets it
+        # through, so this runs the real validation with only the server call replaced.
+        failure = ConnectionError(
+            "Failed to connect to Ollama. Please check that Ollama is downloaded, running "
+            "and accessible."
+        )
         with settings(EMBEDDING_BACKEND="ollama", OPENAI_API_KEY="test"), \
-             mock.patch.object(models, "NomicEmbeddings", side_effect=failure):
+             mock.patch("ollama.Client.list", side_effect=failure):
             self.assertIn("Failed to connect to Ollama", models.setup_problem())
+
+    def test_a_model_that_is_not_pulled_is_reported_in_one_sentence(self):
+        with settings(EMBEDDING_BACKEND="ollama", OPENAI_API_KEY="test"), \
+             mock.patch("ollama.Client.list", return_value={"models": []}):
+            problem = models.setup_problem()
+        self.assertTrue(problem.startswith("Model `nomic-embed-text` not found in Ollama"))
+        self.assertNotIn("validation error", problem)
+        self.assertNotIn("\n", problem)
 
     def test_ingest_does_not_need_the_chat_model(self):
         failure = ValueError("Model `llama3.2:3b` not found in Ollama.")

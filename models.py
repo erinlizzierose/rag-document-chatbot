@@ -113,6 +113,18 @@ def make_chat_model():
     return ChatOpenAI(model=CHAT_MODELS["openai"], temperature=0)
 
 
+def _readable(error):
+    """One sentence for an error raised while creating a model.
+
+    pydantic runs the model's validation inside its constructor and wraps whatever that raises,
+    so a missing Ollama model arrives as a multi-line "1 validation error" dump. The sentence
+    we want is the first entry's msg.
+    """
+    if hasattr(error, "errors"):
+        return error.errors()[0]["msg"].removeprefix("Value error, ")
+    return str(error)
+
+
 def setup_problem(include_chat=True):
     """Say what is missing before any model is called, or return None if nothing is.
 
@@ -129,13 +141,15 @@ def setup_problem(include_chat=True):
                 "EMBEDDING_BACKEND and CHAT_BACKEND to ollama to run without one."
             )
 
-        # Creating an Ollama model checks the server and the model, see make_embeddings().
+        # Creating an Ollama model checks the server and the model, see make_embeddings(). A
+        # stopped server arrives as the builtin ConnectionError, which langchain_ollama does not
+        # convert, and a missing model as a ValueError.
         if backend("EMBEDDING_BACKEND") == "ollama":
             make_embeddings()
         if include_chat and backend("CHAT_BACKEND") == "ollama":
             make_chat_model()
-    except ValueError as error:
-        return str(error)
+    except (ValueError, ConnectionError) as error:
+        return _readable(error)
     return None
 
 
