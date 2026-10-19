@@ -161,11 +161,13 @@ as in Cost below, not bills. The runs:
 [OpenAI embeddings, Ollama answers](evals/results/2026-10-18-embed-openai-chat-ollama.txt),
 [Ollama and Ollama](evals/results/2026-10-18-embed-ollama-chat-ollama.txt).
 
-Swapping the embeddings alone changed nothing, and swapping the answering model alone changed
-nothing. Only the fully local pair lost a question, `thread-id-config`, and retrieval was not
-the cause: five of the six chunks it fetched contained the `configurable` key. `llama3.2:3b`
-said to "include it in the config dictionary" and left that key out, so following the answer
-would not work. The speed difference is the large one, about ten times per answer. All four
+Compared with the all-OpenAI baseline, swapping the embeddings alone or the answering model
+alone left the score at 25. Only the fully local pair lost a question, `thread-id-config`.
+Retrieval did find the answer: five of the six chunks it fetched contained the `configurable`
+key. `llama3.2:3b` said to "include it in the config dictionary" and left that key out, so
+following the answer would not work. The same model passed this question when OpenAI embeddings
+supplied different chunks, prose instead of code samples, so the loss came from nomic's chunks
+and the small model together. The speed difference is the large one, about ten times per answer. All four
 runs fail `long-term-memory-store` the same way, so that one is not about the model. One run
 per combination on 26 questions is a small sample, so a one-question gap is a hint, not a
 ranking.
@@ -239,9 +241,11 @@ all 8 questions the documents cannot answer, including the 3 near misses. I conf
 reading its answers, because the eval prints only failures. Where it lost a question, it had
 the right chunks and left out the one key that made the code work.
 
-**Swapping one half of RAG at a time shows which half matters.** On these 26 questions, neither
-the embedding model nor the answering model moved the score alone. Choosing them separately in
-`models.py` is what made that visible.
+**Swapping one half of RAG at a time shows which half matters.** Against the all-OpenAI
+baseline, changing either model alone left the score at 25, and only the fully local pair
+dropped to 24. The same small model passed the question it lost when OpenAI embeddings
+supplied the chunks, so the two halves interacted. Choosing them separately in `models.py` is
+what made that visible.
 
 **On 8 GB, a 3B model fits but not next to a browser and an editor.** With Chrome and VS Code
 open the Mac had about 16% memory free and the model process died mid-run. After quitting

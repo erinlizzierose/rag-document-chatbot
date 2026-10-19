@@ -18,7 +18,8 @@ parts that don't call a model.
 
 The same pipeline also runs on local Ollama models. All four combinations of OpenAI and
 Ollama embeddings and answers were evaluated on 2026-10-18 and scored 24 to 25 of 26. Local
-answers were about ten times slower, and the fully local pair lost one question to a small
+answers were about ten times slower (one Apple M2 with 8 GB, wall-clock including network and
+model loading), and the fully local pair lost one question to a small
 model dropping a detail. The README has the table. What is left is the stretch work in Phase 4
 and the open issues below.
 
@@ -155,8 +156,9 @@ measured.
 
 Expectation going in: Ollama is free and works offline, but slower and weaker at obeying the
 "answer only from context" instruction. The eval set's eight refusal questions are there to
-measure exactly that. *What happened: free and about ten times slower, as expected. The
-grounding expectation was not borne out on this set, because `llama3.2:3b` declined all
+measure exactly that. *What happened: free and slower, both confirmed (about ten times slower
+per answer, on one Apple M2 with 8 GB, wall-clock including network and model loading).
+Offline use was not tested. The grounding expectation was not borne out on this set, because `llama3.2:3b` declined all
 eight. Its weakness showed up elsewhere, as dropping a key detail: in the fully local run it
 answered `thread-id-config` from the right chunks but left out the `configurable` key.*
 
