@@ -7,9 +7,10 @@ PASS  thread-id-too-long
 PASS  checkpoints-unbounded
 FAIL  thread-id-config
       Q: How do I pass a thread_id when invoking a graph?
-      A: You can pass a `thread_id` when invoking a graph by including it in the `config` dictionary. The `thread_id` should be set to the ID of the thread you want to use.
+      A: You can pass a thread_id when invoking a graph by including it in the config dictionary.
       ! missing: configurable
-      retrieved: data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-persistence.md
+      ! never retrieved data/langchain-persistence.md
+      retrieved: data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md
 
 PASS  trim-messages
 PASS  trim-middleware
@@ -18,14 +19,18 @@ PASS  summarize-messages
 PASS  trim-vs-summarize
 FAIL  long-term-memory-store
       Q: How do I store information that should persist across different conversation threads?
-      A: According to <context> [5] Source: data/langchain-persistence.md, you can use either short-term, thread-scoped memory or long-term, cross-thread memory to store information that should persist across different conversation threads.
-
-For short-term memory, you can use [checkpointers](/oss/python/lang
+      A: According to <context> [2] Source: data/langchain-short-term-memory.md </context>, you can use [long-term memory](/oss/python/langchain/long-term-memory) to store and recall user-specific or application-level data across different threads and sessions.
       ! missing: InMemoryStore or PostgresStore or BaseStore or namespace
-      retrieved: data/langchain-persistence.md, data/langchain-short-term-memory.md, data/langchain-short-term-memory.md, data/langchain-add-memory.md, data/langchain-persistence.md, data/langchain-short-term-memory.md
+      retrieved: data/langchain-persistence.md, data/langchain-short-term-memory.md, data/langchain-short-term-memory.md, data/langchain-short-term-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md
 
 PASS  store-semantic-search
-PASS  grade-documents
+FAIL  grade-documents
+      Q: In the agentic RAG guide, how does the graph decide whether retrieved documents are relevant?
+      A: I don't know.
+      ! missing: grade
+      ! declined a question the documents cover
+      retrieved: data/langchain-agentic-rag.md, data/langchain-agentic-rag.md, data/langchain-agentic-rag.md, data/langchain-agentic-rag.md, data/langchain-agentic-rag.md, data/langchain-agentic-rag.md
+
 PASS  rewrite-on-bad-retrieval
 PASS  minimum-python
 PASS  langchain-classic
@@ -39,6 +44,6 @@ PASS  refuse-near-miss-encrypt-checkpoints
 PASS  refuse-near-miss-redis-version
 PASS  refuse-near-miss-embeddings-return-type
 
-24/26 passed
-failed: thread-id-config, long-term-memory-store
-293 s in total, 11.3 s per question
+23/26 passed
+failed: thread-id-config, long-term-memory-store, grade-documents
+257 s in total, 9.9 s per question

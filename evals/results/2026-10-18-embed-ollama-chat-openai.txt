@@ -5,7 +5,22 @@ PASS  checkpointer-vs-store
 PASS  memorysaver-restarts
 PASS  thread-id-too-long
 PASS  checkpoints-unbounded
-PASS  thread-id-config
+FAIL  thread-id-config
+      Q: How do I pass a thread_id when invoking a graph?
+      A: You can pass a `thread_id` when invoking a graph by including it in the configuration dictionary. For example:
+
+```python
+config = {
+    "configurable": {
+        "thread_id": "1"  # or any other thread ID you want to use
+    }
+}
+```
+
+Then, use this `config` when calling the `graph.stream_events` or
+      ! never retrieved data/langchain-persistence.md
+      retrieved: data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md
+
 PASS  trim-messages
 PASS  trim-middleware
 PASS  delete-messages
@@ -13,9 +28,9 @@ PASS  summarize-messages
 PASS  trim-vs-summarize
 FAIL  long-term-memory-store
       Q: How do I store information that should persist across different conversation threads?
-      A: To store information that should persist across different conversation threads, you can use long-term memory. This allows you to store and recall user-specific or application-level data across different threads and sessions. For more details, refer to the long-term memory documentation. [Source: dat
+      A: To store information that should persist across different conversation threads, you can use long-term memory. This allows you to store and recall user-specific or application-level data across different threads and sessions. You can find more details in the source document [data/langchain-short-term
       ! missing: InMemoryStore or PostgresStore or BaseStore or namespace
-      retrieved: data/langchain-persistence.md, data/langchain-short-term-memory.md, data/langchain-short-term-memory.md, data/langchain-add-memory.md, data/langchain-persistence.md, data/langchain-short-term-memory.md
+      retrieved: data/langchain-persistence.md, data/langchain-short-term-memory.md, data/langchain-short-term-memory.md, data/langchain-short-term-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md
 
 PASS  store-semantic-search
 PASS  grade-documents
@@ -32,6 +47,6 @@ PASS  refuse-near-miss-encrypt-checkpoints
 PASS  refuse-near-miss-redis-version
 PASS  refuse-near-miss-embeddings-return-type
 
-25/26 passed
-failed: long-term-memory-store
-29 s in total, 1.1 s per question
+24/26 passed
+failed: thread-id-config, long-term-memory-store
+34 s in total, 1.3 s per question
