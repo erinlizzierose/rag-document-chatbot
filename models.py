@@ -60,7 +60,9 @@ class NomicEmbeddings(OllamaEmbeddings):
         return super().embed_documents([f"search_document: {text}" for text in texts])
 
     def embed_query(self, text):
-        return super().embed_query(f"search_query: {text}")
+        # Not super().embed_query: it calls self.embed_documents, which would add the document
+        # prefix in front of this one.
+        return super().embed_documents([f"search_query: {text}"])[0]
 
 
 def backend(setting):

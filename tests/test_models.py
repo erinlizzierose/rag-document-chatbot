@@ -55,21 +55,24 @@ class MakeModelsTest(unittest.TestCase):
             model="llama3.2:3b", temperature=0, num_ctx=8192, validate_model_on_init=True
         )
 
-    def test_stored_text_gets_the_document_prefix(self):
+    # These replace only the call to the Ollama server, so they check the exact text the model
+    # would receive. Mocking a parent method instead would hide a second prefix added on the way.
+    def texts_sent_to_ollama(self, embed):
         embeddings = models.NomicEmbeddings(model="nomic-embed-text")
         with mock.patch.object(
-            models.OllamaEmbeddings, "embed_documents", return_value=[[0.0]]
-        ) as parent:
-            embeddings.embed_documents(["Use a checkpointer."])
-        parent.assert_called_once_with(["search_document: Use a checkpointer."])
+            embeddings._client, "embed", return_value={"embeddings": [[0.0]]}
+        ) as server:
+            embed(embeddings)
+        server.assert_called_once()
+        return server.call_args.args[1]
 
-    def test_questions_get_the_query_prefix(self):
-        embeddings = models.NomicEmbeddings(model="nomic-embed-text")
-        with mock.patch.object(
-            models.OllamaEmbeddings, "embed_query", return_value=[0.0]
-        ) as parent:
-            embeddings.embed_query("What is a checkpointer?")
-        parent.assert_called_once_with("search_query: What is a checkpointer?")
+    def test_stored_text_gets_the_document_prefix(self):
+        sent = self.texts_sent_to_ollama(lambda e: e.embed_documents(["Use a checkpointer."]))
+        self.assertEqual(sent, ["search_document: Use a checkpointer."])
+
+    def test_questions_get_only_the_query_prefix(self):
+        sent = self.texts_sent_to_ollama(lambda e: e.embed_query("What is a checkpointer?"))
+        self.assertEqual(sent, ["search_query: What is a checkpointer?"])
 
 
 class SetupProblemTest(unittest.TestCase):
