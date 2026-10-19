@@ -1,127 +1,102 @@
 # Document Chatbot
 
-Ask questions about your own documents and get answers grounded in them, with the source
-passages it used shown alongside every response.
-
-Built to learn how retrieval augmented generation actually works, rather than to wrap an
-API and call it a chatbot.
+A small chatbot that answers questions about a folder of documents and shows the passages each
+answer came from. I built it to learn how retrieval augmented generation (RAG) works, so the
+code is short and this README records what I found along the way.
 
 ![Screenshot](docs/screenshot.png)
 
 ## What it does
 
-Put Markdown, text, or PDF files in `data/`. It splits them into chunks, converts
-each chunk into a vector, and stores them locally. When you ask a question, it finds the
-handful of chunks most similar to your question and asks a language model to answer using
-only those.
+You put Markdown, text or PDF files in `data/`. The app splits them into chunks, turns each
+chunk into a vector, and stores the vectors on your machine. When you ask a question, it finds
+the six chunks closest to your question and asks a language model to answer from those alone.
 
-If the answer isn't in your documents, it says so instead of inventing one. Follow-up
-questions like "and what about the second one?" work too, because they are rewritten into
-standalone questions before searching.
+If the documents don't cover the question, it says it doesn't know. Follow-up questions such as
+"and what about the second one?" also work, because the app rewrites them into standalone
+questions before it searches.
 
-The repo ships with five pages of LangChain documentation in `data/` so there is something
-to ask about straight away. See [data/SOURCES.md](data/SOURCES.md) for where they came from.
+Five pages of LangChain documentation come with the repo, so there's something to ask about
+right away. [data/SOURCES.md](data/SOURCES.md) says where they came from.
 
 ## How it works
 
-1. `ingest.py` reads every supported file in `data/`
-2. Splits them into overlapping ~750 character chunks
-3. Converts each chunk to an embedding, a vector capturing its meaning
-4. Stores chunks and vectors in a local Chroma database
-5. In `app.py`, if there is earlier conversation, the model first rewrites your question so
-   it stands on its own ("the second one" becomes the thing it refers to)
-6. That question is embedded the same way and the 6 nearest chunks are retrieved
-7. Those chunks go to the model inside a prompt that forbids answering from anything else
+1. `ingest.py` reads every `.md`, `.txt` and `.pdf` file in `data/`.
+2. It splits them into overlapping chunks of about 750 characters.
+3. Each chunk becomes an embedding, a list of numbers that captures what it means.
+4. The chunks and embeddings go into a Chroma database in `vectorstore/`.
+5. When you ask something in `app.py`, a follow-up is first rewritten to stand on its own.
+6. The question is embedded the same way, and the 6 nearest chunks are retrieved.
+7. Those chunks go to the model in a prompt that tells it to answer only from them.
 
-The embedding model (steps 3 and 6) and the chat model (steps 5 and 7) are each either OpenAI
-or a local Ollama model, chosen by two settings in `.env` and applied in `models.py`. Both
-default to OpenAI.
+Steps 3 and 6 use an embedding model, and steps 5 and 7 use a chat model. Each one can be OpenAI
+or a local model run by Ollama, set in `.env`. Both default to OpenAI, and `models.py` builds
+whichever you choose.
 
-The question-time path starts at `answer_question()` in `app.py`, about 30 lines.
-
-The Sources panel shows you exactly which chunks were used, so you can check whether the
-answer is actually supported by them.
+To read the code, start at `answer_question()` in `app.py`, which is about 30 lines. Every
+answer has a Sources panel listing the chunks it was given (the first 800 characters of each),
+so you can check the answer against them.
 
 ## Setup
 
-You need Python 3.10 or newer and an OpenAI API key, unless you run everything locally with
-Ollama (see below). The API is paid; see Cost below for how little this uses. On macOS the
-built-in `python3` may be 3.9, which is too old for the pinned dependencies. Check with
-`python3 --version` and install a newer Python from python.org or Homebrew if needed.
+You need Python 3.10 or newer, and for the default setup an OpenAI API key. On a Mac the
+built-in `python3` may be 3.9, which is too old. Check with `python3 --version` and install a
+newer one from python.org or Homebrew if you need to.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env      # then add your OpenAI API key
-```
-
-Then:
-
-```bash
+cp .env.example .env      # then put your OpenAI key after OPENAI_API_KEY=
 python ingest.py          # build the index from data/
 streamlit run app.py      # start the app
 ```
 
-`vectorstore/` is gitignored, so **a fresh clone has no index**. Running `ingest.py` is a
-required step, not an optional one. The app will tell you if you skip it.
+A fresh clone has no index, because `vectorstore/` is gitignored, so `ingest.py` has to run
+before the app has anything to search. If you skip it, the app tells you.
 
 ### Running it locally with Ollama
 
-[Ollama](https://ollama.com) runs models on your own machine, so there is no API key and no
-per-question cost. `langchain-ollama` is already in `requirements.txt`. Ollama can be
-installed as an app from ollama.com, or on a Mac with Homebrew, installed and started one of
-two ways:
+[Ollama](https://ollama.com) runs models on your own computer, with no API key and no cost per
+question. Install it as an app from ollama.com, or with Homebrew on a Mac:
 
 ```bash
 brew install ollama
-ollama serve                  # leave this running in its own terminal tab
+ollama serve                  # keep this running in its own terminal tab
 ```
 
-or
+If you'd rather have it run in the background, use `brew services start ollama` instead of
+`ollama serve`. It will then also start at every login, until you run
+`brew services stop ollama`.
 
-```bash
-brew install ollama
-brew services start ollama    # runs in the background, and again at every login
-brew services stop ollama     # stops it
-```
-
-Then pull the two models, a 2.0 GB answering model and a 274 MB embedding model:
+Then download the two models (2.0 GB and 274 MB):
 
 ```bash
 ollama pull llama3.2:3b
 ollama pull nomic-embed-text
 ```
 
-In `.env`, set the backends. Each one is `openai` or `ollama`, and they are independent, so
-local embeddings with OpenAI answers is allowed:
+Set the backends in `.env`. They're independent, so you can mix them, for example local
+embeddings with OpenAI answers:
 
 ```text
 EMBEDDING_BACKEND=ollama
 CHAT_BACKEND=ollama
 ```
 
-A running app keeps the values it already loaded from `.env`, so restart it after changing
-these.
+Run `python ingest.py` again, because each embedding model has its own index, and restart the
+app if it was running. With both set to `ollama` you don't need an OpenAI key.
 
-Then run `python ingest.py`. Each embedding model keeps its own index in `vectorstore/`, so
-after changing `EMBEDDING_BACKEND` the new index does not exist yet, and the app says to run
-`ingest.py` instead of searching the wrong one. When both backends are `ollama`, no OpenAI
-key is needed.
-
-An 8 GB Mac is enough for these two models, but answers are slower (see the table below),
-and memory is the limit. On an 8 GB M2, the first local runs failed with Chrome and VS Code
-open, because the model process died partway through, most likely from running out of
-memory. They completed after quitting both. Close the heavy apps before running a local model.
+8 GB of RAM is enough, but only just. On my 8 GB M2 the local runs crashed while Chrome and
+VS Code were open, and worked once I quit them.
 
 ## Evaluating it
 
-`evals/questions.yaml` holds 26 questions: 18 the documents answer and 8 they don't, which
-the app must decline, three of them near misses on topics the documents discuss without
-answering. `evals/run.py` asks each one and checks two things separately: whether
-the answer mentions the key terms, and whether retrieval found the right source file.
-Retrieval usually gets worse before answers visibly do, so that second check is the early
-warning.
+`evals/questions.yaml` has 26 questions. The documents answer 18 of them, and the app should
+decline the other 8. Three of those 8 are near misses: they ask about something the documents
+discuss but never answer. `evals/run.py` asks every question and checks two things separately:
+whether the answer contains the key terms, and whether retrieval found the right file.
+Retrieval tends to slip before the answers do, so the second check warns you earlier.
 
 ```bash
 python evals/run.py               # every question
@@ -129,18 +104,14 @@ python evals/run.py trim          # only questions whose id contains "trim"
 RETRIEVAL_K=4 python evals/run.py # try a different number of retrieved chunks
 ```
 
-The current result, with OpenAI for both embeddings and answers, is 25/26 (2026-10-18). The
-one miss is `long-term-memory-store`, a retrieval miss caused by its wording, explained in
-[ROADMAP.md](ROADMAP.md) and under What I learned below.
+With OpenAI for both models it scores 25 of 26 (2026-10-18). The one miss,
+`long-term-memory-store`, is explained under What I learned below.
 
-The number of chunks retrieved was chosen this way. Sweeping it scored 21/23 at k=4 and
-22/23 at k=6, 8, and 10, so 6 is where the gain arrives and where it stops. Chunk size was
-chosen the same way: at 1000 characters one answer ranked 15th and was never retrieved, and
-750 brought it to first. That sweep used the older, looser grading and a 23-question set,
-where it ended at 23/23, so those scores are history and not comparable to 25/26. A full run
-with OpenAI answers costs under a cent.
+I used the eval to choose two settings. Retrieving 6 chunks scored better than 4, and 8 or 10
+added nothing. Chunks of 1000 characters buried one answer at rank 15, and 750 brought it to
+first. Those sweeps ran on an older, smaller version of the question set.
 
-The unit tests need no API key. Run them from the repo root:
+The unit tests need no API key and no Ollama:
 
 ```bash
 python -m unittest discover -s tests -v
@@ -148,146 +119,84 @@ python -m unittest discover -s tests -v
 
 ## OpenAI against a local model
 
-All four combinations of OpenAI and Ollama embeddings and answers, against the same 26
-questions on 2026-10-18. `evals/run.py` prints the models first, the timing last, and the
-answer to every refusal question, so a saved run shows what each model said when it declined.
-The runs were repeated during the day as bugs were fixed (see What I learned below and the
-`thread-id-config` note); the table shows the last run of each.
+I ran the eval with every combination of OpenAI and Ollama on 2026-10-18:
 
 | Embeddings | Answers | Score (of 26) | Answerable (of 18) | Refusals (of 8) | Seconds per question | Cost per run |
 |---|---|---|---|---|---|---|
 | `text-embedding-3-small` | `gpt-4o-mini` | 25 | 17 | 8 | 1.7 | under 1 cent |
 | `nomic-embed-text` | `gpt-4o-mini` | 25 | 17 | 8 | 1.2 | under 1 cent |
-| `text-embedding-3-small` | `llama3.2:3b` | 25 | 17 | 8 | 11.3 | effectively nothing |
+| `text-embedding-3-small` | `llama3.2:3b` | 25 | 17 | 8 | 11.3 | close to zero |
 | `nomic-embed-text` | `llama3.2:3b` | 23 | 15 | 8 | 11.1 | $0 |
 
-Seconds come from one Apple M2 with 8 GB of RAM. They are wall-clock, so they include network
-round trips for OpenAI and model loading for Ollama. Costs are estimates from token counts,
-as in Cost below, not bills. The runs:
-[OpenAI and OpenAI](evals/results/2026-10-18-embed-openai-chat-openai.txt),
-[Ollama embeddings, OpenAI answers](evals/results/2026-10-18-embed-ollama-chat-openai.txt),
-[OpenAI embeddings, Ollama answers](evals/results/2026-10-18-embed-openai-chat-ollama.txt),
-[Ollama and Ollama](evals/results/2026-10-18-embed-ollama-chat-ollama.txt).
+The times come from one 8 GB Apple M2 and include network time for OpenAI and model loading for
+Ollama. Costs are estimated from token counts. The output of each run is in
+[`evals/results/`](evals/results/).
 
-Compared with the all-OpenAI baseline, swapping either half alone left the score at 25. That
-took one correction to the eval. For `thread-id-config`, `nomic-embed-text` fetched all six
-chunks from `langchain-add-memory.md`, every one containing the `configurable` key, and
-`gpt-4o-mini` answered correctly from them, but the check accepted only
-`langchain-persistence.md`. `langchain-add-memory.md` passes `{"configurable": {"thread_id":
-"1"}}` to a graph in almost every example, so it answers the question as well, and the check
-now accepts it, along with `langchain-short-term-memory.md`, whose agent examples do the same.
-That applies to every combination; the runs with OpenAI embeddings retrieved
-`langchain-persistence.md` anyway.
+Every combination declined all 8 questions it should have, including the near misses. I
+expected the small local model to make things up more often, and it didn't. Where it fell short
+was detail. In the fully local run it left out the `configurable` key from its answer to
+`thread-id-config`, although every chunk it was given showed that key, and it said "I don't
+know" to a question its chunks did answer. The same model got both right when OpenAI's
+embeddings picked the chunks. It was also about seven to nine times slower.
 
-The fully local pair lost two questions that the other three answered. On `thread-id-config`,
-`llama3.2:3b` said to "include it in the config dictionary" and left out the `configurable`
-key, although all six chunks it was given contained it, so following the answer would not
-work. On `grade-documents` it said "I don't know." to a question the documents answer, and
-`gpt-4o-mini` answered it from the same six chunks.
-
-The speed difference is the large one, roughly seven to nine times per answer. The fully local
-pair took 11.3, 9.9, 10.2 and 11.1 seconds per question across its four runs, so treat the
-timings as rough. All four runs fail `long-term-memory-store` the same way, so that one is not
-about the model. One run per combination on 26 questions is a small sample, so a gap of one or
-two questions is a hint, not a ranking.
+With 26 questions and one run shown per row, a gap of one or two points is a hint more than a
+result. The [roadmap](ROADMAP.md) has the full story, including a bug in the local embedding
+setup and an eval check that was too strict, which both moved the local scores along the way.
 
 ## Cost
 
-By default uses `text-embedding-3-small` for embeddings and `gpt-4o-mini` for answers.
-Indexing the bundled ~180 KB of documents costs around a tenth of a cent. A question costs
-roughly $0.0004, most of it the six retrieved chunks sent to the model, so a dollar buys around
-2,500 questions. Follow-ups make one extra, smaller call to rewrite the question. These are
-estimates from token counts at OpenAI's published prices, not measured bills. The local
-backend costs nothing per question but is slower: about 10 to 12 seconds per question with
-`llama3.2:3b` against about 1.2 to 1.7 with `gpt-4o-mini`, wall-clock on one Apple M2
-with 8 GB.
+Indexing the bundled 177 KB of documents with `text-embedding-3-small` costs about a tenth of a
+cent. One question to `gpt-4o-mini` costs about $0.0002: I measured one at 1,035 tokens in and
+111 out. That's roughly 4,500 questions per dollar. A follow-up question adds one smaller call to
+rewrite it. These figures come from token counts at OpenAI's listed prices (`gpt-4o-mini`
+checked 2026-10-19), and I haven't compared them with a bill. The local models cost nothing per
+question.
 
 ## What I learned building this
 
-**Retrieval and grounding are separate mechanisms, and only one of them is search.**
-Ask something the documents don't cover and it still retrieves 6 chunks, because similarity
-search has no concept of "no match." It returns the least-bad options every time. The
-refusal comes entirely from the prompt, not the retrieval.
+**Search always returns something.** Ask about a topic the documents don't cover and retrieval
+still hands back 6 chunks, because similarity search has no idea of "no match". It returns the
+closest ones it has. The refusal comes from the prompt, which tells the model to answer only
+from those chunks.
 
-**This architecture cannot summarize a corpus.** Nothing in the pipeline ever reads all the
-chunks. Ask it to summarize everything and it will confidently summarize the handful of chunks it
-happened to retrieve, which reads exactly like a complete answer. Asking a specific question
-retrieves specific content; asking a vague one retrieves vague content.
+**It can't summarize the whole corpus.** Nothing in the pipeline reads every chunk. Ask for a
+summary of everything and you get a confident summary of the six chunks that happened to come
+back, and it reads like a complete answer.
 
-**Junk in the corpus competes for retrieval slots.** The documentation pages here opened
-with a boilerplate header addressed to an LLM. It was the only text in the corpus discussing
-documentation in the abstract, so it beat real content on precisely the broad questions where
-a wasted slot hurts most, taking 2 of 4 slots (the app retrieved 4 at the time). Stripping
-it changed the answers noticeably.
+**A chunk's embedding describes the whole chunk.** One answer was a short section inside a
+1000-character chunk that was mostly import examples, so the chunk's vector mostly described
+the imports. A question using nearly the documentation's own words still ranked it 15th.
+Smaller chunks fixed it, but at 300 characters two other answers were split across chunks and
+broke.
 
-**A chunk's embedding describes everything in the chunk, not its best sentence.** Asked what
-changed about "the return type of chat model invocation", nearly the documentation's exact
-words, retrieval still missed: the answer was a short section sharing a 1000-character chunk
-with import examples and a Python version note, so the chunk's vector mostly described those.
-It ranked 15th. Stripping links and markup made it worse, because the chunk boundaries moved
-and pushed the answer behind even more unrelated code. Smaller chunks fixed it. Going too small
-(300) broke two other answers by splitting them across chunks.
+**Search matches your words, and the documents may use different ones.** Asked how to store
+information "across different conversation threads", every setup gave a vague answer. The
+documents call that "long-term memory", and the words "conversation" and "thread" mostly appear
+on the short-term memory pages, so those pages won. With OpenAI embeddings the right chunk came
+10th. Asked about "long-term memory" directly, it came 2nd. I left the question as it is so the
+eval keeps showing the weakness.
 
-**Similarity search matches how a question is worded, not what you meant.** Asked how to "store
-information that should persist across different conversation threads", every setup gave a
-vague answer. The documents file that answer under "long-term memory", while the words
-"conversation" and "thread" fill the short-term memory pages, so those won and the answer chunk
-ranked 10th with OpenAI embeddings. Asked about "long-term memory" directly, it ranked 2nd. A
-user who does not know a field's vocabulary yet gets the weakest retrieval, and the eval keeps
-that question as written so the weakness stays visible.
+**Some mistakes raise no error at all.** If documents are indexed with one embedding model and
+questions searched with another of the same vector size, you just get wrong matches. That's why
+`models.py` is the one place that names the models, and each model gets its own index. The local
+embedding model also needs a label in front of each text, and my code was quietly adding the
+wrong one to every question. Fixing it changed which chunks came back for 18 of the 26
+questions. The unit test passed the whole time, because it mocked the method that added the
+extra label.
 
-**A passing eval check can be passing by luck.** One question required the word "delete",
-which the documents use only in a code comment; their actual advice is to "prune". It passed
-for weeks, then failed a correct answer the moment chunking changed which text the model saw.
+**Follow-up questions break the search too.** "How do I add the second one?" shares no words
+with the answer, and the search happens before the model sees anything. So the app rewrites the
+question first and sends the rewritten version to both the search and the model. When only the
+search got it, the two could take "the second one" to mean different things.
 
-**Two embedding models with the same vector size fail silently.** The old default,
-`text-embedding-ada-002`, and `text-embedding-3-small` are both 1536 dimensions. Embedding
-documents with one and questions with the other raises no error at all and simply returns
-wrong matches. `models.py` is now the only place that names the models, so indexing and
-searching cannot disagree, and each embedding model gets its own Chroma collection. Searching
-with a model that has not indexed anything finds an empty collection, and the app says to run
-`ingest.py` instead of returning wrong matches.
+**Documents can break your prompt.** The prompt puts retrieved text inside `<context>` tags and
+says everything in there is untrusted. The bundled docs contain their own `</context>` tags in
+example prompts, which would close the block early. The app now escapes those tags first. That
+makes the trick harder, but it doesn't make it impossible.
 
-**Follow-up questions break retrieval, not just comprehension.** "How do I add the second
-one?" shares no words with the documents that answer it, and retrieval happens before the
-model sees anything. Passing history to the answering model alone would fix understanding
-while still fetching the wrong chunks. Rewriting the question first fixes both, but only if
-the rewritten question goes to the answering model as well. Sending it to the retriever and
-the raw one to the model let the two resolve "the second one" differently: right documents,
-wrong question answered, no error anywhere.
-
-**A delimiter is only as strong as the documents allow.** The prompt wraps retrieved text in
-`<context>` tags and tells the model everything inside is untrusted. But the bundled LangChain
-docs contain their own example prompts with a literal `</context>` in them, so a retrieved
-chunk could close the block early and the rest would read as if the user had written it. The
-tags are now escaped in document text before it goes into the prompt. That makes the defense
-harder to break, not unbreakable.
-
-**A small local model failed by leaving things out, not by ignoring the rules.** I expected
-`llama3.2:3b` to obey "answer only from the context" less well than `gpt-4o-mini`. It declined
-all 8 questions the documents cannot answer, including the 3 near misses, and the saved runs
-show each answer. Of its 16 refusal answers across two runs, 11 are "I don't know.", 3 "I do
-not know." and 2 "You do not know.", a small model's slip that still declines. Where it lost
-questions, it left out the one key that made the code work although every chunk it had
-contained it, and once said "I don't know." to a question its chunks answered.
-
-**Swapping one half at a time did not move the score; only the fully local pair dropped.**
-Against the all-OpenAI baseline, changing the answering model alone left the score at 25, and so
-did changing the embeddings alone once the eval accepted a second correct source file. The fully
-local pair dropped to 23, and the same small model answered both of the questions it lost when
-OpenAI's embeddings chose the chunks. That suggests the two halves interact, though one run and
-a two-question gap is a hint, not proof. Choosing the two with separate
-settings in `.env`, which `models.py` applies, is what made that visible.
-
-**A wrong embedding prefix raises no error either.** Every question went to `nomic-embed-text`
-with the document prefix in front of the query prefix, because the parent class's `embed_query`
-calls my overridden `embed_documents`. Fixing it changed which chunks made the top 6 for 18 of
-26 questions and lowered both nomic scores by one. The test passed throughout because it mocked
-the very method that added the second prefix. It now checks the text sent to Ollama.
-
-**On 8 GB, a 3B model fits but not next to a browser and an editor.** With Chrome and VS Code
-open the Mac had about 16% memory free and the model process died mid-run. After quitting
-both, the same runs finished.
+**An eval check can pass by accident.** One question required the word "delete", which the docs
+use only in a code comment. Their actual advice is to "prune". The check passed for weeks, then
+failed a correct answer after a chunking change altered what the model saw.
 
 ## Project layout
 
@@ -297,40 +206,38 @@ ingest.py          Document loading and indexing
 models.py          Which models embed text and write answers, OpenAI or Ollama
 data/              Documents to index, plus SOURCES.md (attribution, not indexed)
 evals/             Question set and the script that scores the app against it
-evals/results/     Saved eval runs, one per combination of backends
+evals/results/     Saved eval runs, one per combination of models
 tests/             Offline unit tests for the parts that don't call a model
 docs/              Screenshot for this README
 vectorstore/       Local Chroma database, created by ingest.py, gitignored
-ROADMAP.md         Planned work and known issues
+ROADMAP.md         What's been done, what's next, and known issues
 ```
 
 ## Adding your own documents
 
-Drop `.md`, `.txt`, or `.pdf` files into `data/` and re-run `python ingest.py`. Re-running is
-safe and repeatable; it clears the collection before rebuilding. If you replace the bundled
-documents, the eval set will no longer apply, since its questions are about them.
+Drop `.md`, `.txt` or `.pdf` files into `data/` and run `python ingest.py` again. It clears the
+old index first, so re-running is safe. If you replace the bundled documents, the eval questions
+won't apply any more, since they're about those documents.
 
-PDFs need a real text layer. Scanned or photographed pages have none, so their text extracts
-as empty and they are silently left out of the index. If no file in `data/` yields any text,
-`ingest.py` stops with an error and leaves the existing index alone. PDF loading is also the
-least tested path: the bundled corpus is all Markdown.
+PDFs need a real text layer. Scanned pages have none, so they're left out of the index without a
+warning. If nothing in `data/` has any text, `ingest.py` stops and leaves the existing index
+alone. PDF loading is also the least tested part, since the bundled documents are all Markdown.
 
 ## Limitations
 
-- Conversation history lives in the Streamlit session, so it resets when you refresh the page.
-- Adding documents means copying files and running a terminal command; there is no upload.
-- The local model numbers come from one Apple M2 with 8 GB and one run per combination.
+- Conversation history lives in the Streamlit session and resets when you refresh the page.
+- There's no upload button. Adding documents means copying files and running `ingest.py`.
+- The local-model numbers come from one 8 GB Apple M2.
 - The bundled documents are a snapshot from 2026-08-04 and will drift from the live LangChain
   docs.
 
 ## Next steps
 
-The Ollama comparison is done, above. See [ROADMAP.md](ROADMAP.md) for what remains. The most
-interesting open item is searching with a drafted answer instead of the question, which one
-probe suggests would fix `long-term-memory-store`, the one eval question every setup fails.
+See [ROADMAP.md](ROADMAP.md). Next on my list is searching with a drafted answer instead of the
+question, a technique called HyDE. One quick test suggests it would fix `long-term-memory-store`.
 
 ## License
 
 The code is MIT licensed; see [LICENSE](LICENSE). The documents in `data/` are LangChain's
-documentation, also MIT licensed, copyright LangChain. [data/SOURCES.md](data/SOURCES.md)
-lists where each one came from and includes their license.
+documentation, also MIT licensed, copyright LangChain. [data/SOURCES.md](data/SOURCES.md) lists
+where each one came from and includes their license.

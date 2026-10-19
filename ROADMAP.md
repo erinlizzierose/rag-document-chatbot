@@ -283,7 +283,7 @@ What has and has not been checked, so an assumption is not mistaken for a test.
   Ollama defaults to 4,096 tokens on machines like this one, and `models.py` sets 8,192. The
   longest prompt measured (six long history messages plus six chunks) was 2,107 tokens, in
   a one-off check with a throwaway script, not one saved in the repo.
-- The speed figures come from one Apple M2 with 8 GB, one run per combination. They are
+- The speed figures come from one Apple M2 with 8 GB, the last run of each combination. They are
   wall-clock from `evals/run.py`, so they include network round trips for OpenAI and model
   loading for Ollama. On this machine the local answer runs only completed with Chrome and
   VS Code closed.
