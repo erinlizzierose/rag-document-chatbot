@@ -156,12 +156,17 @@ measured.
       re-indexing finds an empty collection, which the app reports as "run `ingest.py`".
 - [x] **Run the eval set against each combination** and record answer quality, speed, and
       cost. All four runs are saved in [`evals/results/`](evals/results/). Scores were 25/26
-      for all OpenAI, 24/26 for `nomic-embed-text` with `gpt-4o-mini`, 25/26 for OpenAI
-      embeddings with `llama3.2:3b`, and 23/26 fully local, at about 1.3 to 1.4 seconds per
+      for all OpenAI, 25/26 for `nomic-embed-text` with `gpt-4o-mini`, 25/26 for OpenAI
+      embeddings with `llama3.2:3b`, and 23/26 fully local, at about 1.4 seconds per
       question with `gpt-4o-mini` answers and 10 to 12 with `llama3.2:3b`. Speed is wall-clock
       on one Apple M2 with 8 GB. Cost per run is under a cent with OpenAI answers and nothing
       with local ones, estimated from token counts, not billed. *The two `nomic-embed-text`
-      runs were redone after the prefix fix, and both scored one lower than before it.*
+      runs were redone after the prefix fix, and both scored one lower than before it. Then
+      `thread-id-config`, which had accepted only `langchain-persistence.md`, was changed to
+      accept `langchain-add-memory.md` too. That file passes `{"configurable": {"thread_id":
+      "1"}}` to a graph in almost every example, nomic fetched all six chunks from it, and
+      `gpt-4o-mini` answered correctly from them. Both nomic runs were redone once more, and nomic with `gpt-4o-mini` went back
+      to 25/26. The fully local run still fails it, because its answer leaves out the key.*
 - [x] **Put the comparison table in the README.**
 
 Expectation going in: Ollama is free and works offline, but slower and weaker at obeying the
@@ -220,12 +225,6 @@ exercise.
   vague, saying "use stores" without naming one, and the store sections of
   `langchain-add-memory.md` are not among the chunks retrieved for the question in any of the
   four runs. Look at the question wording and at which chunks come back.
-- **`thread-id-config` may expect too narrow a source.** With `nomic-embed-text`, all six
-  chunks retrieved for it come from `langchain-add-memory.md`, each containing the
-  `configurable` key, and `gpt-4o-mini` answered correctly from them. It still fails, because
-  the check expects `langchain-persistence.md`. `langchain-add-memory.md` arguably answers the
-  question too. Whether to accept either file is an open question about the eval. It was left
-  unchanged so that the decision is made on purpose, not to win back a point.
 - **`llama3.2:3b` sometimes repeats the prompt's formatting to the user.** One answer opened
   "According to <context> [2] Source: data/langchain-short-term-memory.md </context>".
   `gpt-4o-mini` never did this.

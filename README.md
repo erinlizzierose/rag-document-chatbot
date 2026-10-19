@@ -147,14 +147,15 @@ python -m unittest discover -s tests -v
 All four combinations of OpenAI and Ollama embeddings and answers, each run once against the
 same 26 questions on 2026-10-18. `evals/run.py` prints the models first and the timing last.
 The two `nomic-embed-text` rows were run again the same day after a bug in its question prefix
-was fixed (see What I learned below). These are the corrected runs.
+was fixed (see What I learned below), and once more after `thread-id-config` was changed to
+accept a second source file (see below). These are those last runs.
 
 | Embeddings | Answers | Score (of 26) | Answerable (of 18) | Refusals (of 8) | Seconds per question | Cost per run |
 |---|---|---|---|---|---|---|
 | `text-embedding-3-small` | `gpt-4o-mini` | 25 | 17 | 8 | 1.4 | under 1 cent |
-| `nomic-embed-text` | `gpt-4o-mini` | 24 | 16 | 8 | 1.3 | under 1 cent |
+| `nomic-embed-text` | `gpt-4o-mini` | 25 | 17 | 8 | 1.4 | under 1 cent |
 | `text-embedding-3-small` | `llama3.2:3b` | 25 | 17 | 8 | 11.9 | effectively nothing |
-| `nomic-embed-text` | `llama3.2:3b` | 23 | 15 | 8 | 9.9 | $0 |
+| `nomic-embed-text` | `llama3.2:3b` | 23 | 15 | 8 | 10.2 | $0 |
 
 Seconds come from one Apple M2 with 8 GB of RAM. They are wall-clock, so they include network
 round trips for OpenAI and model loading for Ollama. Costs are estimates from token counts,
@@ -164,22 +165,23 @@ as in Cost below, not bills. The runs:
 [OpenAI embeddings, Ollama answers](evals/results/2026-10-18-embed-openai-chat-ollama.txt),
 [Ollama and Ollama](evals/results/2026-10-18-embed-ollama-chat-ollama.txt).
 
-Compared with the all-OpenAI baseline, swapping the answering model alone left the score at
-25. Swapping the embeddings alone lost `thread-id-config`, but only on the source check:
-`nomic-embed-text` fetched six chunks from `langchain-add-memory.md`, every one containing
-the `configurable` key, and `gpt-4o-mini` answered correctly from them. The eval
-expects `langchain-persistence.md`, though `langchain-add-memory.md` arguably answers it too.
-That is an open question about the eval, listed in [ROADMAP.md](ROADMAP.md), and the check
-stays as it is until that is decided.
+Compared with the all-OpenAI baseline, swapping either half alone left the score at 25. That
+took one correction to the eval. For `thread-id-config`, `nomic-embed-text` fetched all six
+chunks from `langchain-add-memory.md`, every one containing the `configurable` key, and
+`gpt-4o-mini` answered correctly from them, but the check accepted only
+`langchain-persistence.md`. `langchain-add-memory.md` passes `{"configurable": {"thread_id":
+"1"}}` to a graph in almost every example, so it answers the question as well, and the check now
+accepts either file. That applies to every combination; the runs with OpenAI embeddings
+retrieved `langchain-persistence.md` anyway.
 
-The fully local pair lost the same question and one more. On `thread-id-config`,
+The fully local pair lost two questions that the other three answered. On `thread-id-config`,
 `llama3.2:3b` said to "include it in the config dictionary" and left out the `configurable`
 key, although all six chunks it was given contained it, so following the answer would not
 work. On `grade-documents` it said "I don't know." to a question the documents answer, and
 `gpt-4o-mini` answered it from the same six chunks.
 
 The speed difference is the large one, about eight times per answer. The fully local pair
-took 11.3 seconds per question on its first run and 9.9 on the re-run, so treat the timings as
+took 11.3, 9.9 and 10.2 seconds per question across its three runs, so treat the timings as
 rough. All four runs fail `long-term-memory-store` the same way, so that one is not about the
 model. One run per combination on 26 questions is a small sample, so a gap of one or two
 questions is a hint, not a ranking.
@@ -192,7 +194,7 @@ roughly $0.0004, most of it the six retrieved chunks sent to the model, so a dol
 2,500 questions. Follow-ups make one extra, smaller call to rewrite the question. These are
 estimates from token counts at OpenAI's published prices, not measured bills. The local
 backend costs nothing per question but is slower: about 10 to 12 seconds per question with
-`llama3.2:3b` against about 1.3 to 1.4 with `gpt-4o-mini`, wall-clock on one Apple M2
+`llama3.2:3b` against about 1.4 with `gpt-4o-mini`, wall-clock on one Apple M2
 with 8 GB.
 
 ## What I learned building this
@@ -257,10 +259,11 @@ the code work although every chunk it had contained it, and once said "I don't k
 question its chunks answered.
 
 **Swapping one half of RAG at a time shows which half matters.** Against the all-OpenAI
-baseline, changing the answering model alone left the score at 25. Changing the embeddings
-alone dropped it to 24, through a different source rather than a wrong answer, and the fully
-local pair dropped to 23. Choosing the two with separate settings in `.env`, which `models.py`
-applies, is what made that visible.
+baseline, changing the answering model alone left the score at 25, and so did changing the
+embeddings alone once the eval accepted a second correct source file. Only the fully local pair
+dropped, to 23, and the same small model answered both of the questions it lost when OpenAI's
+embeddings chose the chunks, so the two halves interact. Choosing the two with separate
+settings in `.env`, which `models.py` applies, is what made that visible.
 
 **A wrong embedding prefix raises no error either.** Every question went to `nomic-embed-text`
 with the document prefix in front of the query prefix, because the parent class's `embed_query`

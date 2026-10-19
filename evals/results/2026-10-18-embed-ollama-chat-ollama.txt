@@ -9,7 +9,6 @@ FAIL  thread-id-config
       Q: How do I pass a thread_id when invoking a graph?
       A: You can pass a thread_id when invoking a graph by including it in the config dictionary.
       ! missing: configurable
-      ! never retrieved data/langchain-persistence.md
       retrieved: data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md
 
 PASS  trim-messages
@@ -46,4 +45,4 @@ PASS  refuse-near-miss-embeddings-return-type
 
 23/26 passed
 failed: thread-id-config, long-term-memory-store, grade-documents
-257 s in total, 9.9 s per question
+266 s in total, 10.2 s per question
