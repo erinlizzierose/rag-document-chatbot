@@ -65,6 +65,9 @@ class NomicEmbeddings(OllamaEmbeddings):
         # prefix in front of this one.
         return super().embed_documents([f"search_query: {text}"])[0]
 
+    # The async versions, aembed_documents and aembed_query, are not overridden and send no
+    # prefix. Nothing here calls them: Chroma and the retriever use the two methods above.
+
 
 def backend(setting):
     """Read EMBEDDING_BACKEND or CHAT_BACKEND, defaulting to openai.
@@ -142,7 +145,8 @@ def setup_problem(include_chat=True):
         if "openai" in in_use and not os.getenv("OPENAI_API_KEY"):
             return (
                 "No OPENAI_API_KEY found. Copy .env.example to .env and add your key, or set "
-                "EMBEDDING_BACKEND and CHAT_BACKEND to ollama to run without one."
+                "EMBEDDING_BACKEND and CHAT_BACKEND to ollama to run without one. A running "
+                "app reads .env only when it starts, so restart it after editing."
             )
 
         # Creating an Ollama model checks the server and the model, see make_embeddings(). A

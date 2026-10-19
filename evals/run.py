@@ -156,6 +156,12 @@ def main():
         mark = "PASS" if passed else "FAIL"
         print(f"{mark}  {question['id']}")
 
+        # A refusal passes on a marker like "does not mention", which also appears in "The
+        # context does not mention X, but X is Y", an invented answer with a hedge in front.
+        # Printing every refusal answer, on one line, lets a saved run show what was said.
+        if passed and question.get("should_refuse"):
+            print(f"      A: {' '.join(answer.split())[:200]}")
+
         if not passed:
             failures.append(question["id"])
             print(f"      Q: {question['question']}")

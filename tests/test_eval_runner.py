@@ -122,6 +122,20 @@ class MainTest(unittest.TestCase):
         refusals = [q for q in questions if "refuse" in q["id"]]
         self.assertEqual(output.count("PASS"), len(refusals))
 
+    def test_a_passing_refusal_still_shows_its_answer(self):
+        # The refusal check is a marker list, so "The context does not mention X, but X is Y"
+        # passes. Printing every refusal answer lets a saved run show what was really said.
+        result = ("The context does not mention it,\nbut it is Redis 8.", [doc_from("data/a.md")], "q")
+        _, output = self.run_main(result, ["run.py", "refuse-near-miss-redis"])
+        self.assertIn("PASS  refuse-near-miss-redis-version", output)
+        self.assertIn("      A: The context does not mention it, but it is Redis 8.", output)
+
+    def test_a_passing_answerable_question_prints_only_its_mark(self):
+        result = ("Keep it under 255 characters.", [doc_from("data/langchain-persistence.md")], "q")
+        _, output = self.run_main(result, ["run.py", "thread-id-too-long"])
+        self.assertIn("PASS  thread-id-too-long", output)
+        self.assertNotIn("A: ", output)
+
     def test_a_setup_problem_stops_before_any_question(self):
         output = io.StringIO()
         with mock.patch.object(eval_run.models, "setup_problem", return_value="No OPENAI_API_KEY found."), \

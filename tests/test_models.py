@@ -80,6 +80,12 @@ class SetupProblemTest(unittest.TestCase):
         with settings():
             self.assertIn("OPENAI_API_KEY", models.setup_problem())
 
+    def test_the_blank_key_from_env_example_counts_as_missing(self):
+        # .env.example ships with OPENAI_API_KEY= so a copied file with no key gets this
+        # message instead of a 401 from OpenAI on the first question.
+        with settings(OPENAI_API_KEY=""):
+            self.assertIn("restart", models.setup_problem())
+
     def test_no_key_needed_when_everything_runs_locally(self):
         with settings(EMBEDDING_BACKEND="ollama", CHAT_BACKEND="ollama"), \
              mock.patch.object(models, "NomicEmbeddings"), \

@@ -60,14 +60,14 @@
   question: How do I pass a thread_id when invoking a graph?
   must_mention: ["configurable", "thread_id"]
   should_refuse: false
-  # add-memory.md builds a graph and passes {"configurable": {"thread_id": "1"}} to it in
-  # almost every example, so it answers this as well as persistence.md does. Listing only
-  # persistence.md failed a correct answer that showed the configurable key, when
-  # nomic-embed-text fetched add-memory.md instead. short-term-memory.md is left out: its
-  # examples invoke an agent, not a graph.
+  # All three memory pages pass {"configurable": {"thread_id": "1"}} when invoking. add-memory.md
+  # does it to a graph it builds, and short-term-memory.md to an agent from create_agent, which
+  # returns a compiled graph too. Listing only persistence.md failed a correct answer that showed
+  # the configurable key, when nomic-embed-text fetched add-memory.md instead.
   expect_source:
     - data/langchain-persistence.md
     - data/langchain-add-memory.md
+    - data/langchain-short-term-memory.md
 
 # --- Answerable: managing message history ---
 
