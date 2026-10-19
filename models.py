@@ -41,9 +41,10 @@ CHAT_MODELS = {
 }
 
 # Ollama gives a model a 4096-token window unless told otherwise, on machines with less than
-# 24 GiB of GPU memory. Six retrieved chunks, the instructions, and six messages of history can
-# get close to that, and what Ollama does with a prompt that overflows is not something this app
-# should depend on. Twice the default keeps every prompt well inside.
+# 24 GiB of GPU memory. The worst prompt measured here, six retrieved chunks plus six long
+# messages of history, was 2,107 tokens, about half that default. The window is set explicitly
+# anyway, at twice the default, so the app never depends on what Ollama does with a prompt that
+# overflows.
 OLLAMA_CONTEXT_TOKENS = 8192
 
 
@@ -98,7 +99,8 @@ def collection_name():
 def make_embeddings():
     if backend("EMBEDDING_BACKEND") == "ollama":
         # validate_model_on_init checks that Ollama is running and the model is pulled, and
-        # raises a ValueError saying which, instead of a connection error on the first search.
+        # raises a ConnectionError or ValueError saying which, before the first search rather
+        # than during it.
         return NomicEmbeddings(model=EMBEDDING_MODELS["ollama"], validate_model_on_init=True)
     return OpenAIEmbeddings(model=EMBEDDING_MODELS["openai"])
 

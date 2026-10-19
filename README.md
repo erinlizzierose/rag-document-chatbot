@@ -34,7 +34,8 @@ to ask about straight away. See [data/SOURCES.md](data/SOURCES.md) for where the
 7. Those chunks go to the model inside a prompt that forbids answering from anything else
 
 The embedding model (steps 3 and 6) and the chat model (steps 5 and 7) are each either OpenAI
-or a local Ollama model, chosen in `models.py`. Both default to OpenAI.
+or a local Ollama model, chosen by two settings in `.env` and applied in `models.py`. Both
+default to OpenAI.
 
 The question-time path starts at `answer_question()` in `app.py`, about 30 lines.
 
@@ -44,9 +45,9 @@ answer is actually supported by them.
 ## Setup
 
 You need Python 3.10 or newer and an OpenAI API key, unless you run everything locally with
-Ollama (see below). The API is paid; see Cost below for how little this uses. On macOS the built-in `python3` may be 3.9, which is too old for the pinned
-dependencies. Check with `python3 --version` and install a newer Python from python.org or
-Homebrew if needed.
+Ollama (see below). The API is paid; see Cost below for how little this uses. On macOS the
+built-in `python3` may be 3.9, which is too old for the pinned dependencies. Check with
+`python3 --version` and install a newer Python from python.org or Homebrew if needed.
 
 ```bash
 python3 -m venv .venv
@@ -68,8 +69,9 @@ required step, not an optional one. The app will tell you if you skip it.
 ### Running it locally with Ollama
 
 [Ollama](https://ollama.com) runs models on your own machine, so there is no API key and no
-per-question cost. `langchain-ollama` is already in `requirements.txt`. On a Mac with
-Homebrew, install Ollama and start it one of two ways:
+per-question cost. `langchain-ollama` is already in `requirements.txt`. Ollama can be
+installed as an app from ollama.com, or on a Mac with Homebrew, installed and started one of
+two ways:
 
 ```bash
 brew install ollama
@@ -84,8 +86,7 @@ brew services start ollama    # runs in the background, and again at every login
 brew services stop ollama     # stops it
 ```
 
-Ollama can also be installed as an app from ollama.com. Then pull the two models, a 2.0 GB
-answering model and a 274 MB embedding model:
+Then pull the two models, a 2.0 GB answering model and a 274 MB embedding model:
 
 ```bash
 ollama pull llama3.2:3b
@@ -107,8 +108,8 @@ key is needed.
 
 An 8 GB Mac is enough for these two models, but answers are slower (see the table below),
 and memory is the limit. On an 8 GB M2, the first local runs failed with Chrome and VS Code
-open, because the model process ran out of memory partway through. They completed after
-quitting both. Close the heavy apps before running a local model.
+open, because the model process died partway through, most likely from running out of
+memory. They completed after quitting both. Close the heavy apps before running a local model.
 
 ## Evaluating it
 
@@ -133,7 +134,7 @@ The number of chunks retrieved was chosen this way. Sweeping it scored 21/23 at 
 chosen the same way: at 1000 characters one answer ranked 15th and was never retrieved, and
 750 brought it to first. That sweep used the older, looser grading and a 23-question set,
 where it ended at 23/23, so those scores are history and not comparable to 25/26. A full run
-costs under a cent.
+with OpenAI answers costs under a cent.
 
 The unit tests need no API key. Run them from the repo root:
 
@@ -145,13 +146,15 @@ python -m unittest discover -s tests -v
 
 All four combinations of OpenAI and Ollama embeddings and answers, each run once against the
 same 26 questions on 2026-10-18. `evals/run.py` prints the models first and the timing last.
+The two `nomic-embed-text` rows were run again the same day after a bug in its question prefix
+was fixed (see What I learned below). These are the corrected runs.
 
 | Embeddings | Answers | Score (of 26) | Answerable (of 18) | Refusals (of 8) | Seconds per question | Cost per run |
 |---|---|---|---|---|---|---|
 | `text-embedding-3-small` | `gpt-4o-mini` | 25 | 17 | 8 | 1.4 | under 1 cent |
-| `nomic-embed-text` | `gpt-4o-mini` | 25 | 17 | 8 | 1.1 | under 1 cent |
+| `nomic-embed-text` | `gpt-4o-mini` | 24 | 16 | 8 | 1.3 | under 1 cent |
 | `text-embedding-3-small` | `llama3.2:3b` | 25 | 17 | 8 | 11.9 | effectively nothing |
-| `nomic-embed-text` | `llama3.2:3b` | 24 | 16 | 8 | 11.3 | $0 |
+| `nomic-embed-text` | `llama3.2:3b` | 23 | 15 | 8 | 9.9 | $0 |
 
 Seconds come from one Apple M2 with 8 GB of RAM. They are wall-clock, so they include network
 round trips for OpenAI and model loading for Ollama. Costs are estimates from token counts,
@@ -161,26 +164,36 @@ as in Cost below, not bills. The runs:
 [OpenAI embeddings, Ollama answers](evals/results/2026-10-18-embed-openai-chat-ollama.txt),
 [Ollama and Ollama](evals/results/2026-10-18-embed-ollama-chat-ollama.txt).
 
-Compared with the all-OpenAI baseline, swapping the embeddings alone or the answering model
-alone left the score at 25. Only the fully local pair lost a question, `thread-id-config`.
-Retrieval did find the answer: five of the six chunks it fetched contained the `configurable`
-key. `llama3.2:3b` said to "include it in the config dictionary" and left that key out, so
-following the answer would not work. The same model passed this question when OpenAI embeddings
-supplied different chunks, prose instead of code samples, so the loss came from nomic's chunks
-and the small model together. The speed difference is the large one, about ten times per answer. All four
-runs fail `long-term-memory-store` the same way, so that one is not about the model. One run
-per combination on 26 questions is a small sample, so a one-question gap is a hint, not a
-ranking.
+Compared with the all-OpenAI baseline, swapping the answering model alone left the score at
+25. Swapping the embeddings alone lost `thread-id-config`, but only on the source check:
+`nomic-embed-text` fetched six chunks from `langchain-add-memory.md`, every one containing
+the `configurable` key, and `gpt-4o-mini` answered correctly from them. The eval
+expects `langchain-persistence.md`, though `langchain-add-memory.md` arguably answers it too.
+That is an open question about the eval, listed in [ROADMAP.md](ROADMAP.md), and the check
+stays as it is until that is decided.
+
+The fully local pair lost the same question and one more. On `thread-id-config`,
+`llama3.2:3b` said to "include it in the config dictionary" and left out the `configurable`
+key, although all six chunks it was given contained it, so following the answer would not
+work. On `grade-documents` it said "I don't know." to a question the documents answer, and
+`gpt-4o-mini` answered it from the same six chunks.
+
+The speed difference is the large one, about eight times per answer. The fully local pair
+took 11.3 seconds per question on its first run and 9.9 on the re-run, so treat the timings as
+rough. All four runs fail `long-term-memory-store` the same way, so that one is not about the
+model. One run per combination on 26 questions is a small sample, so a gap of one or two
+questions is a hint, not a ranking.
 
 ## Cost
 
-By default uses `text-embedding-3-small` for embeddings and `gpt-4o-mini` for answers. Indexing the
-bundled ~180 KB of documents costs around a tenth of a cent. A question costs roughly
-$0.0004, most of it the six retrieved chunks sent to the model, so a dollar buys around
+By default uses `text-embedding-3-small` for embeddings and `gpt-4o-mini` for answers.
+Indexing the bundled ~180 KB of documents costs around a tenth of a cent. A question costs
+roughly $0.0004, most of it the six retrieved chunks sent to the model, so a dollar buys around
 2,500 questions. Follow-ups make one extra, smaller call to rewrite the question. These are
 estimates from token counts at OpenAI's published prices, not measured bills. The local
-backend costs nothing per question but is slower: about 11 to 12 seconds per question with
-`llama3.2:3b` against about 1 to 1.4 with `gpt-4o-mini`, wall-clock on one Apple M2 with 8 GB.
+backend costs nothing per question but is slower: about 10 to 12 seconds per question with
+`llama3.2:3b` against about 1.3 to 1.4 with `gpt-4o-mini`, wall-clock on one Apple M2
+with 8 GB.
 
 ## What I learned building this
 
@@ -235,17 +248,25 @@ chunk could close the block early and the rest would read as if the user had wri
 tags are now escaped in document text before it goes into the prompt. That makes the defense
 harder to break, not unbreakable.
 
-**A small local model failed by dropping a detail, not by ignoring the rules.** I expected
+**A small local model failed by leaving things out, not by ignoring the rules.** I expected
 `llama3.2:3b` to obey "answer only from the context" less well than `gpt-4o-mini`. It declined
 all 8 questions the documents cannot answer, including the 3 near misses. I confirmed that by
-reading its answers, because the eval prints only failures. Where it lost a question, it had
-the right chunks and left out the one key that made the code work.
+reading its answers, because the eval prints only failures, and the refusal check passed all 8
+again after the prefix fix below. Where it lost questions, it left out the one key that made
+the code work although every chunk it had contained it, and once said "I don't know." to a
+question its chunks answered.
 
 **Swapping one half of RAG at a time shows which half matters.** Against the all-OpenAI
-baseline, changing either model alone left the score at 25, and only the fully local pair
-dropped to 24. The same small model passed the question it lost when OpenAI embeddings
-supplied the chunks, so the two halves interacted. Choosing them separately in `models.py` is
-what made that visible.
+baseline, changing the answering model alone left the score at 25. Changing the embeddings
+alone dropped it to 24, through a different source rather than a wrong answer, and the fully
+local pair dropped to 23. Choosing the two with separate settings in `.env`, which `models.py`
+applies, is what made that visible.
+
+**A wrong embedding prefix raises no error either.** Every question went to `nomic-embed-text`
+with the document prefix in front of the query prefix, because the parent class's `embed_query`
+calls my overridden `embed_documents`. Fixing it changed which chunks made the top 6 for 18 of
+26 questions and lowered both nomic scores by one. The test passed throughout because it mocked
+the very method that added the second prefix. It now checks the text sent to Ollama.
 
 **On 8 GB, a 3B model fits but not next to a browser and an editor.** With Chrome and VS Code
 open the Mac had about 16% memory free and the model process died mid-run. After quitting
