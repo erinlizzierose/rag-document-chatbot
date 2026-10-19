@@ -1,0 +1,14 @@
+# Runs the offline unit tests on every push and pull request. They need no API key and no
+# Ollama, so nothing secret is involved.
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v

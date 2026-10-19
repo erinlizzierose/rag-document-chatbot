@@ -117,6 +117,8 @@ The unit tests need no API key and no Ollama:
 python -m unittest discover -s tests -v
 ```
 
+GitHub Actions runs the same tests on every push, using `.github/workflows/tests.yml`.
+
 ## OpenAI against a local model
 
 I ran the eval with every combination of OpenAI and Ollama on 2026-10-18:
