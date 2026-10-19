@@ -127,7 +127,8 @@ RETRIEVAL_K=4 python evals/run.py # try a different number of retrieved chunks
 ```
 
 The current result, with OpenAI for both embeddings and answers, is 25/26 (2026-10-18). The
-one miss is `long-term-memory-store`, a known failure described in [ROADMAP.md](ROADMAP.md).
+one miss is `long-term-memory-store`, a retrieval miss caused by its wording, explained in
+[ROADMAP.md](ROADMAP.md) and under What I learned below.
 
 The number of chunks retrieved was chosen this way. Sweeping it scored 21/23 at k=4 and
 22/23 at k=6, 8, and 10, so 6 is where the gain arrives and where it stops. Chunk size was
@@ -223,6 +224,14 @@ It ranked 15th. Stripping links and markup made it worse, because the chunk boun
 and pushed the answer behind even more unrelated code. Smaller chunks fixed it. Going too small
 (300) broke two other answers by splitting them across chunks.
 
+**Similarity search matches how a question is worded, not what you meant.** Asked how to
+"store information that should persist across different conversation threads", every setup
+gave a vague answer. The documents file that answer under "long-term memory", while the words
+"conversation" and "thread" fill the short-term memory pages, so those won and the answer chunk
+ranked 10th. Asked about "long-term memory" directly, it ranked 2nd. A user who does not know
+a field's vocabulary yet gets the weakest retrieval, and the eval keeps that question as written
+so the weakness stays visible.
+
 **A passing eval check can be passing by luck.** One question required the word "delete",
 which the documents use only in a code comment; their actual advice is to "prune". It passed
 for weeks, then failed a correct answer the moment chunking changed which text the model saw.
@@ -312,7 +321,8 @@ least tested path: the bundled corpus is all Markdown.
 ## Next steps
 
 The Ollama comparison is done, above. See [ROADMAP.md](ROADMAP.md) for what remains. The most
-interesting open item is `long-term-memory-store`, the one eval question every setup fails.
+interesting open item is searching with a drafted answer instead of the question, which one
+probe suggests would fix `long-term-memory-store`, the one eval question every setup fails.
 
 ## License
 

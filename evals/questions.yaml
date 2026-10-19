@@ -110,6 +110,9 @@
   # These name an actual store or how one is organised, and each appears in both expected files
   # except PostgresStore and BaseStore, which only add-memory.md uses.
   must_mention: [["InMemoryStore", "PostgresStore", "BaseStore", "namespace"]]
+  # Fails in every setup, and is kept as written on purpose. It describes the need, while the
+  # documents name the solution "long-term memory", so the answer chunk ranks 10th or lower and
+  # is never retrieved. Rewording it to match would hide that weakness. See ROADMAP.md.
   should_refuse: false
   # Two files answer this one properly: add-memory.md explains stores at length, and
   # persistence.md covers the same ground in its checkpointer-vs-store table. Pinning it to a

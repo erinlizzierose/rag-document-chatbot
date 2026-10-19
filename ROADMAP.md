@@ -165,8 +165,9 @@ measured.
       `thread-id-config`, which had accepted only `langchain-persistence.md`, was changed to
       accept `langchain-add-memory.md` too. That file passes `{"configurable": {"thread_id":
       "1"}}` to a graph in almost every example, nomic fetched all six chunks from it, and
-      `gpt-4o-mini` answered correctly from them. Both nomic runs were redone once more, and nomic with `gpt-4o-mini` went back
-      to 25/26. The fully local run still fails it, because its answer leaves out the key.*
+      `gpt-4o-mini` answered correctly from them. Both nomic runs were redone once more, and
+      nomic with `gpt-4o-mini` went back to 25/26. The fully local run still fails it, because
+      its answer leaves out the key.*
 - [x] **Put the comparison table in the README.**
 
 Expectation going in: Ollama is free and works offline, but slower and weaker at obeying the
@@ -190,6 +191,14 @@ answer from outside the context.*
       pronoun differently. Right documents fetched, wrong question answered, no error
       anywhere. Both now get the rewritten question.* History lives in the Streamlit
       session, so it resets on page refresh.
+- [ ] **Try searching with a drafted answer (HyDE).** Ask the model for a short draft answer
+      and search with the draft instead of the question, because a draft uses the vocabulary
+      of an answer. One probe on `long-term-memory-store` (2026-10-18): `gpt-4o-mini`'s draft
+      invented a class that does not exist, yet searching with it moved the real answer chunk
+      from 10th to 3rd with OpenAI embeddings and from 31st to 6th with `nomic-embed-text`. The
+      draft is only used to search; the answer still comes from the retrieved chunks. Before
+      keeping it: one extra model call per question, and its effect on the other questions,
+      refusals especially, is unmeasured. Make it a setting and run the full eval.
 - [ ] **Document upload in the app.** Adding a document currently means copying a file and
       running a terminal command. This is the gap between "works for me" and "usable by
       others."
@@ -220,11 +229,19 @@ exercise.
   with the next one.
 - **The Sources panel renders chunks as Markdown and cuts them at 800 characters**, so
   headings appear oversized and long passages are shortened.
-- **`long-term-memory-store` fails in every setup, and is worth investigating.** It failed
-  identically with all four model combinations, so it is not a model problem. The answers stay
-  vague, saying "use stores" without naming one, and the store sections of
-  `langchain-add-memory.md` are not among the chunks retrieved for the question in any of the
-  four runs. Look at the question wording and at which chunks come back.
+- **`long-term-memory-store` fails in every setup, because of how it is worded.** Investigated
+  on 2026-10-18, retrieval only. The question describes the need ("persist across different
+  conversation threads"), but the documents file the answer under the solution's name,
+  "long-term memory". The chunk that answers it (`## Add long-term memory`, with `InMemoryStore` and
+  `compile(store=store)`) ranked 10th with OpenAI embeddings and 31st with `nomic-embed-text`,
+  so it was never among the six sent to the model. The chunks that won talk about threads and
+  conversations, which in these documents is short-term memory, plus a page footer saying "use
+  stores to persist durable data across threads". That is where the vague answers come from.
+  Asked as "How do I add long-term memory to a LangGraph graph?", the same chunk ranked 2nd and
+  1st. Nothing in the code, the grader, or the models is broken: plain similarity search works
+  when you already use the documents' words. The question stays as written, because rewording
+  it to match would hide a real weakness. Searching with a drafted answer is the experiment to
+  try next, in Phase 4.
 - **`llama3.2:3b` sometimes repeats the prompt's formatting to the user.** One answer opened
   "According to <context> [2] Source: data/langchain-short-term-memory.md </context>".
   `gpt-4o-mini` never did this.
