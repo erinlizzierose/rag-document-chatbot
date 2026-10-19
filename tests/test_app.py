@@ -1,6 +1,9 @@
+import os
 import unittest
+from unittest import mock
 
 from langchain_core.documents import Document
+from langchain_core.messages import AIMessage
 
 import app
 
@@ -78,6 +81,27 @@ class FormatDocsTest(unittest.TestCase):
     def test_ordinary_text_is_unchanged(self):
         doc = Document("Use a checkpointer.", metadata={"source": "data/x.md"})
         self.assertEqual(app.format_docs([doc]), "[1] Source: data/x.md\nUse a checkpointer.")
+
+
+class WiringTest(unittest.TestCase):
+    def test_retriever_reads_the_collection_for_the_current_embedding_model(self):
+        with mock.patch.dict(os.environ, {"EMBEDDING_BACKEND": "ollama"}), \
+             mock.patch.object(app, "Chroma") as chroma, \
+             mock.patch.object(app.models, "make_embeddings"):
+            app.load_retriever()
+        self.assertEqual(chroma.call_args.kwargs["collection_name"], "nomic-embed-text")
+
+    def test_answers_come_from_the_configured_chat_model(self):
+        retriever = mock.Mock()
+        retriever.invoke.return_value = [Document("Use a checkpointer.", metadata={"source": "data/a.md"})]
+        chat = mock.Mock()
+        chat.invoke.return_value = AIMessage("Use a checkpointer.")
+        with mock.patch.object(app, "load_retriever", return_value=retriever), \
+             mock.patch.object(app.models, "make_chat_model", return_value=chat):
+            answer, docs, search_query = app.answer_question("How do I add memory?")
+        self.assertEqual(answer, "Use a checkpointer.")
+        self.assertEqual(search_query, "How do I add memory?")
+        chat.invoke.assert_called_once()
 
 
 if __name__ == "__main__":

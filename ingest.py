@@ -3,9 +3,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
+
+import models
 
 
 DATA_DIR = Path("data")
@@ -18,12 +19,6 @@ SUPPORTED_EXTENSIONS = {".md", ".pdf", ".txt"}
 # documentation in the abstract, which is exactly what wins slots on vague questions. Same
 # problem strip_leading_blockquote() exists to solve, arriving by a different route.
 EXCLUDED_FILENAMES = {"SOURCES.md"}
-
-# Must match EMBEDDING_MODEL in app.py. Questions are embedded by the app and compared
-# against chunks embedded here, so two different models produce meaningless comparisons.
-# The old default (text-embedding-ada-002) has the same 1536 dimensions as this one, so a
-# mismatch raises no error at all. It just silently returns bad matches.
-EMBEDDING_MODEL = "text-embedding-3-small"
 
 # A chunk is embedded as one vector, so a short section that shares its chunk with unrelated
 # text gets an embedding that mostly describes the unrelated text. At 1000 characters the
@@ -99,6 +94,12 @@ def load_documents():
 def main():
     load_dotenv()
 
+    # Checked before anything is read or deleted. ingest.py only embeds, so the chat backend
+    # does not need to be set up for it.
+    problem = models.setup_problem(include_chat=False)
+    if problem:
+        raise SystemExit(problem)
+
     documents = load_documents()
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
@@ -117,8 +118,9 @@ def main():
         )
 
     vectorstore = Chroma(
+        collection_name=models.collection_name(),
         persist_directory=str(VECTORSTORE_DIR),
-        embedding_function=OpenAIEmbeddings(model=EMBEDDING_MODEL),
+        embedding_function=models.make_embeddings(),
     )
 
     # Chroma.from_documents() would append. It generates a fresh UUID for every chunk
@@ -129,7 +131,7 @@ def main():
     vectorstore.add_documents(chunks)
 
     print(f"Indexed {len(chunks)} chunks from {len(documents)} document pages/files.")
-    print(f"Vector store saved to {VECTORSTORE_DIR}/")
+    print(f"Embedded with {models.embedding_model_name()}, saved to {VECTORSTORE_DIR}/")
 
 
 if __name__ == "__main__":

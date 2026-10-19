@@ -1,5 +1,6 @@
 import contextlib
 import io
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -22,8 +23,8 @@ class StripLeadingBlockquoteTest(unittest.TestCase):
 
 
 class IngestMainTest(unittest.TestCase):
-    def run_main_with(self, files):
-        """Run ingest.main() against a temporary data folder, with Chroma and OpenAI mocked out."""
+    def run_main_with(self, files, problem=None):
+        """Run ingest.main() against a temporary data folder, with Chroma and the models mocked out."""
         with tempfile.TemporaryDirectory() as tmp:
             data_dir = Path(tmp) / "data"
             data_dir.mkdir()
@@ -32,13 +33,24 @@ class IngestMainTest(unittest.TestCase):
             with mock.patch.object(ingest, "DATA_DIR", data_dir), \
                  mock.patch.object(ingest, "VECTORSTORE_DIR", Path(tmp) / "vectorstore"), \
                  mock.patch.object(ingest, "Chroma") as chroma, \
-                 mock.patch.object(ingest, "OpenAIEmbeddings"):
+                 mock.patch.object(ingest.models, "make_embeddings"), \
+                 mock.patch.object(ingest.models, "setup_problem", return_value=problem):
                 # Kept on self so a test can inspect it even when main() raises.
                 self.chroma = chroma
                 # main() prints progress lines; keep them out of the test output.
                 with contextlib.redirect_stdout(io.StringIO()):
                     ingest.main()
             return chroma
+
+    def test_a_setup_problem_stops_before_touching_the_index(self):
+        with self.assertRaisesRegex(SystemExit, "No OPENAI_API_KEY"):
+            self.run_main_with({"real.md": "Text."}, problem="No OPENAI_API_KEY found.")
+        self.chroma.assert_not_called()
+
+    def test_each_embedding_model_writes_its_own_collection(self):
+        with mock.patch.dict(os.environ, {"EMBEDDING_BACKEND": "ollama"}):
+            chroma = self.run_main_with({"real.md": "# Memory\nUse a checkpointer."})
+        self.assertEqual(chroma.call_args.kwargs["collection_name"], "nomic-embed-text")
 
     def test_stops_before_touching_the_index_when_no_text_is_found(self):
         with self.assertRaises(SystemExit):

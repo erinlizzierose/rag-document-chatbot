@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 import streamlit as st
+
+import models
 
 
 # Loaded at import time, not inside main(), so the module can be imported by tests and
@@ -14,11 +15,6 @@ import streamlit as st
 load_dotenv()
 
 VECTORSTORE_DIR = "vectorstore"
-CHAT_MODEL = "gpt-4o-mini"
-
-# Must match EMBEDDING_MODEL in ingest.py. See the longer note there: the two models have
-# the same vector size, so a mismatch raises nothing and silently retrieves wrong chunks.
-EMBEDDING_MODEL = "text-embedding-3-small"
 
 # Six messages is three exchanges. Enough to resolve almost any follow-up without paying to
 # resend a long conversation on every question.
@@ -164,10 +160,10 @@ def load_retriever():
     # re-indexing, every question failed with "Collection does not exist" until the server was
     # restarted, and reloading the page did not help because the cache is shared across
     # sessions. Opening the local store is cheap next to the model call that follows.
-    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
     vectorstore = Chroma(
+        collection_name=models.collection_name(),
         persist_directory=VECTORSTORE_DIR,
-        embedding_function=embeddings,
+        embedding_function=models.make_embeddings(),
     )
     return vectorstore.as_retriever(search_kwargs={"k": RETRIEVAL_K})
 
@@ -177,7 +173,7 @@ def build_search_query(question, history):
     if not history:
         return question
 
-    model = ChatOpenAI(model=CHAT_MODEL, temperature=0)
+    model = models.make_chat_model()
     response = model.invoke(
         REWRITE_PROMPT.format_messages(
             history=to_messages(history), question=question
@@ -208,7 +204,7 @@ def answer_question(question, history=None):
     # The rewritten question goes to the model too, not the raw one. Otherwise the model has
     # to resolve "the other one" a second time, on its own, and can land on a different
     # referent than the retriever did: right documents fetched, wrong question answered.
-    model = ChatOpenAI(model=CHAT_MODEL, temperature=0)
+    model = models.make_chat_model()
     response = model.invoke(
         ANSWER_PROMPT.format_messages(
             history=to_messages(history),
@@ -223,16 +219,17 @@ def answer_question(question, history=None):
 def main():
     st.set_page_config(page_title="Document Chatbot")
     st.title("Document Chatbot")
-    st.caption("Ask questions about the documents indexed from the data folder.")
 
-    # Checked up front. Otherwise the missing-key error surfaces as a raw traceback on the
-    # first question, because the OpenAI client is only constructed at that point.
-    if not os.getenv("OPENAI_API_KEY"):
-        st.error(
-            "No `OPENAI_API_KEY` found. Copy `.env.example` to `.env`, add your key, "
-            "then restart the app."
-        )
+    # Checked up front. Otherwise a missing key or a stopped Ollama surfaces as a raw traceback
+    # on the first question, because no model is created until then.
+    problem = models.setup_problem()
+    if problem:
+        st.error(problem)
         st.stop()
+
+    st.caption(
+        f"Ask questions about the documents indexed from the data folder. {models.describe()}."
+    )
 
     if "messages" not in st.session_state:
         st.session_state.messages = []

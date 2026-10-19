@@ -7,13 +7,15 @@ Imports app.py directly rather than driving the UI. That is why load_dotenv() si
 scope in app.py and why answer_question() returns the retrieved documents alongside the answer:
 this script needs both, and neither is reachable through Streamlit.
 
-Each question costs one embedding call and one chat call. History is not passed, so the rewrite
-call never fires. The full set runs for under a cent.
+Each question makes one embedding call and one chat call. On OpenAI that costs money, and the
+full set runs for under a cent. On Ollama it costs nothing. History is not passed, so the rewrite
+call never fires.
 """
 
 import logging
 import re
 import sys
+import time
 from pathlib import Path
 
 import yaml
@@ -26,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 logging.getLogger("streamlit").setLevel(logging.ERROR)
 
 from app import answer_question, describe_source  # noqa: E402
+import models  # noqa: E402
 
 
 QUESTIONS_FILE = Path(__file__).parent / "questions.yaml"
@@ -126,6 +129,16 @@ def main():
             print(f"No question ids contain {sys.argv[1]!r}")
             return 1
 
+    problem = models.setup_problem()
+    if problem:
+        print(problem)
+        return 1
+
+    # Printed first so a saved run says which models produced it.
+    print(models.describe())
+    print()
+
+    started = time.perf_counter()
     failures = []
 
     for question in questions:
@@ -153,10 +166,14 @@ def main():
             print(f"      retrieved: {', '.join(describe_source(d) for d in docs)}")
             print()
 
+    elapsed = time.perf_counter() - started
     total = len(questions)
     print(f"\n{total - len(failures)}/{total} passed")
     if failures:
         print("failed: " + ", ".join(failures))
+    # Speed is half of what the local comparison measures. Wall-clock time, so it includes
+    # the network for OpenAI and the first model load for Ollama.
+    print(f"{elapsed:.0f} s in total, {elapsed / total:.1f} s per question")
 
     return 1 if failures else 0
 

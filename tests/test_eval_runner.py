@@ -102,6 +102,7 @@ class MainTest(unittest.TestCase):
     def run_main(self, answer_result, argv):
         output = io.StringIO()
         with mock.patch.object(eval_run, "answer_question", return_value=answer_result), \
+             mock.patch.object(eval_run.models, "setup_problem", return_value=None), \
              mock.patch.object(eval_run.sys, "argv", argv), \
              redirect_stdout(output):
             exit_code = eval_run.main()
@@ -120,6 +121,17 @@ class MainTest(unittest.TestCase):
         questions = yaml.safe_load(eval_run.QUESTIONS_FILE.read_text())
         refusals = [q for q in questions if "refuse" in q["id"]]
         self.assertEqual(output.count("PASS"), len(refusals))
+
+    def test_a_setup_problem_stops_before_any_question(self):
+        output = io.StringIO()
+        with mock.patch.object(eval_run.models, "setup_problem", return_value="No OPENAI_API_KEY found."), \
+             mock.patch.object(eval_run, "answer_question") as answer_question, \
+             mock.patch.object(eval_run.sys, "argv", ["run.py"]), \
+             redirect_stdout(output):
+            exit_code = eval_run.main()
+        self.assertEqual(exit_code, 1)
+        self.assertIn("No OPENAI_API_KEY found.", output.getvalue())
+        answer_question.assert_not_called()
 
 
 if __name__ == "__main__":
