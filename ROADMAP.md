@@ -135,8 +135,9 @@ measured.
       real test: `llama3.2:3b` declined all 8 refusal questions, including the 3 near misses,
       with the same prompt. *The refusal check is a marker list, so "The context does not
       mention X, but X is Y" would pass it. The eval now prints every refusal answer, and the
-      saved runs show all 32 across the four combinations were refusals: "I do not know." from
-      `gpt-4o-mini`, "I don't know." from `llama3.2:3b`, which twice wrote "You do not know."*
+      saved runs show all 32 across the four combinations were refusals. All 16 from
+      `gpt-4o-mini` were "I do not know."; of the 16 from `llama3.2:3b`, 11 were "I don't
+      know.", 3 "I do not know." and 2 "You do not know."*
 - [x] **Install Ollama** and pull a chat model and `nomic-embed-text`. Ollama 0.40.6 from
       Homebrew, `llama3.2:3b` (2.0 GB download) and `nomic-embed-text` (274 MB).
       `langchain-ollama==1.1.0` is pinned in `requirements.txt`, compatible with the pinned
@@ -236,8 +237,9 @@ exercise.
   conversation threads"), but the documents file the answer under the solution's name,
   "long-term memory". The chunk that answers it (`## Add long-term memory`, with
   `InMemoryStore` and `compile(store=store)`) ranked 10th with OpenAI embeddings and 31st with
-  `nomic-embed-text`, so it was never among the six sent to the model. The only other chunk
-  that answers it, the Quickstart in `langchain-persistence.md`, ranked 166th and 35th. The
+  `nomic-embed-text`, so it was never among the six sent to the model. Another chunk that
+  answers it, the Quickstart in `langchain-persistence.md`, ranked 166th and 35th. These ranks
+  come from a one-off retrieval check with a throwaway script, not one saved in the repo. The
   chunks that won talk about threads and conversations, which in these documents is short-term
   memory, plus a page footer saying "use stores to persist durable data across threads". That
   is where the vague answers come from. Asked as "How do I add long-term memory to a LangGraph

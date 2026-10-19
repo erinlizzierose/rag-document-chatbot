@@ -146,7 +146,7 @@ def setup_problem(include_chat=True):
             return (
                 "No OPENAI_API_KEY found. Copy .env.example to .env and add your key, or set "
                 "EMBEDDING_BACKEND and CHAT_BACKEND to ollama to run without one. A running "
-                "app reads .env only when it starts, so restart it after editing."
+                "app keeps the values it already loaded, so restart it after editing .env."
             )
 
         # Creating an Ollama model checks the server and the model, see make_embeddings(). A

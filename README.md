@@ -101,7 +101,8 @@ EMBEDDING_BACKEND=ollama
 CHAT_BACKEND=ollama
 ```
 
-A running app reads `.env` only when it starts, so restart it after changing these.
+A running app keeps the values it already loaded from `.env`, so restart it after changing
+these.
 
 Then run `python ingest.py`. Each embedding model keeps its own index in `vectorstore/`, so
 after changing `EMBEDDING_BACKEND` the new index does not exist yet, and the app says to run
@@ -173,9 +174,10 @@ took one correction to the eval. For `thread-id-config`, `nomic-embed-text` fetc
 chunks from `langchain-add-memory.md`, every one containing the `configurable` key, and
 `gpt-4o-mini` answered correctly from them, but the check accepted only
 `langchain-persistence.md`. `langchain-add-memory.md` passes `{"configurable": {"thread_id":
-"1"}}` to a graph in almost every example, so it answers the question as well, and the check now
-accepts either file. That applies to every combination; the runs with OpenAI embeddings
-retrieved `langchain-persistence.md` anyway.
+"1"}}` to a graph in almost every example, so it answers the question as well, and the check
+now accepts it, along with `langchain-short-term-memory.md`, whose agent examples do the same.
+That applies to every combination; the runs with OpenAI embeddings retrieved
+`langchain-persistence.md` anyway.
 
 The fully local pair lost two questions that the other three answered. On `thread-id-config`,
 `llama3.2:3b` said to "include it in the config dictionary" and left out the `configurable`
@@ -264,10 +266,10 @@ harder to break, not unbreakable.
 **A small local model failed by leaving things out, not by ignoring the rules.** I expected
 `llama3.2:3b` to obey "answer only from the context" less well than `gpt-4o-mini`. It declined
 all 8 questions the documents cannot answer, including the 3 near misses, and the saved runs
-show each answer. Nearly all are "I don't know."; twice it wrote "You do not know.", a small
-model's slip that still declines. Where it lost questions, it left out the one key that made
-the code work although every chunk it had contained it, and once said "I don't know." to a
-question its chunks answered.
+show each answer. Of its 16 refusal answers across two runs, 11 are "I don't know.", 3 "I do
+not know." and 2 "You do not know.", a small model's slip that still declines. Where it lost
+questions, it left out the one key that made the code work although every chunk it had
+contained it, and once said "I don't know." to a question its chunks answered.
 
 **Swapping one half at a time did not move the score; only the fully local pair dropped.**
 Against the all-OpenAI baseline, changing the answering model alone left the score at 25, and so
