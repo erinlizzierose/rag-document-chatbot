@@ -16,7 +16,11 @@ measures it, and the current settings scored 25 of 26 when last run (2026-10-18)
 miss is `long-term-memory-store`, explained under Phase 3. Offline unit tests cover the
 parts that don't call a model.
 
-Next is running the same pipeline against a local model and comparing the two.
+The same pipeline also runs on local Ollama models. All four combinations of OpenAI and
+Ollama embeddings and answers were evaluated on 2026-10-18 and scored 24 to 25 of 26. Local
+answers were about ten times slower, and the fully local pair lost one question to a small
+model dropping a detail. The README has the table. What is left is the stretch work in Phase 4
+and the open issues below.
 
 ## Phase 0: Make it real (done)
 
@@ -38,7 +42,8 @@ Next is running the same pipeline against a local model and comparing the two.
       *Verified: a second ingest left 240 vectors, not 480.*
 - [x] **Name the embedding model explicitly in both files.** The old default,
       `text-embedding-ada-002`, has the same 1536 dimensions as `text-embedding-3-small`, so
-      a mismatch raises nothing and quietly returns bad matches.
+      a mismatch raises nothing and quietly returns bad matches. *Since moved to `models.py`
+      in Phase 3, so only one file names it.*
 - [x] **Guard the empty index.** An empty store returns no matches rather than an error. The
       app checks for that and tells you to run `ingest.py`, before paying for the answer
       call.
@@ -87,7 +92,7 @@ From a review of the whole history before publishing.
 - [x] **Offline unit tests** for everything that doesn't call a model:
       `python -m unittest discover -s tests -v`.
 
-## Phase 3: Run it locally too, and compare (next)
+## Phase 3: Run it locally too, and compare (done)
 
 The step that makes this more than a tutorial clone: the same pipeline on two backends,
 measured.
@@ -122,23 +127,38 @@ measured.
       chunks, the model answered from an unrelated code snippet instead of saying it did not
       know. Retrieval no longer triggers that here, so three near-miss questions now test it:
       topics the documents discuss at length but never answer. `gpt-4o-mini` declines all
-      three with the current prompt, so the prompt was left alone. The local model run is the
-      real test.
-- [ ] **Install Ollama** and pull a chat model and `nomic-embed-text`. Add `langchain-ollama`
-      to `requirements.txt`, pinned to a version compatible with the pinned `langchain-core`.
-- [ ] **Make the backend configurable, with the embedding model and chat model as separate
-      settings.** Local embeddings with an API chat model is a reasonable combination, and it
-      shows which half of RAG drives answer quality. The embedding setting must change in
-      `ingest.py` and `app.py` together.
-- [ ] **Re-ingest when switching embedding models.** Different models produce different
-      vector sizes, so an index built with one is unusable with the other.
-- [ ] **Run the eval set against each combination** and record answer quality, speed, and
-      cost.
-- [ ] **Put the comparison table in the README.**
+      three with the current prompt, so the prompt was left alone. The local model was the
+      real test: `llama3.2:3b` declined all 8 refusal questions, including the 3 near misses,
+      with the same prompt. *Verified by reading its answers, since the eval prints only
+      failures. Each was a plain "I don't know."*
+- [x] **Install Ollama** and pull a chat model and `nomic-embed-text`. Ollama 0.40.6 from
+      Homebrew, `llama3.2:3b` (2.0 GB download) and `nomic-embed-text` (274 MB).
+      `langchain-ollama==1.1.0` is pinned in `requirements.txt`, compatible with the pinned
+      `langchain-core`.
+- [x] **Make the backend configurable, with the embedding model and chat model as separate
+      settings.** `models.py` reads `EMBEDDING_BACKEND` and `CHAT_BACKEND`, each `openai` or
+      `ollama`, and is the one place that names the models. `ingest.py`, `app.py` and
+      `evals/run.py` all build their models through it. `nomic-embed-text` needs a task prefix
+      on stored text and on questions, which `models.py` adds.
+- [x] **Re-ingest when switching embedding models.** This became one Chroma collection per
+      embedding model instead. Different models produce different vector sizes, and even
+      same-size ones give meaningless matches against each other's vectors. With separate
+      collections, both indexes sit in `vectorstore/` side by side, and switching without
+      re-indexing finds an empty collection, which the app reports as "run `ingest.py`".
+- [x] **Run the eval set against each combination** and record answer quality, speed, and
+      cost. All four runs are saved in [`evals/results/`](evals/results/). Scores were 25/26,
+      25/26, 25/26 and 24/26 (fully local), at about 1.1 to 1.4 seconds per question with
+      `gpt-4o-mini` answers and 11 to 12 with `llama3.2:3b`. Speed is wall-clock on one Apple
+      M2 with 8 GB. Cost per run is under a cent with OpenAI answers and nothing with local
+      ones, estimated from token counts, not billed.
+- [x] **Put the comparison table in the README.**
 
 Expectation going in: Ollama is free and works offline, but slower and weaker at obeying the
 "answer only from context" instruction. The eval set's eight refusal questions are there to
-measure exactly that.
+measure exactly that. *What happened: free and about ten times slower, as expected. The
+grounding expectation was not borne out on this set, because `llama3.2:3b` declined all
+eight. Its weakness showed up elsewhere, as dropping a key detail: in the fully local run it
+answered `thread-id-config` from the right chunks but left out the `configurable` key.*
 
 ## Phase 4: Stretch
 
@@ -178,10 +198,17 @@ exercise.
   and the unanswered question stays in the history sent with the next one.
 - **The Sources panel renders chunks as Markdown and cuts them at 800 characters**, so
   headings appear oversized and long passages are shortened.
+- **`long-term-memory-store` fails in every setup, and is worth investigating.** It failed
+  identically with all four model combinations, so it is not a model problem. The answers stay
+  vague, saying "use stores" without naming one, and `langchain-add-memory.md` is rarely
+  retrieved for the question. Look at the question wording and at which chunks come back.
+- **`llama3.2:3b` sometimes repeats the prompt's formatting to the user.** One answer opened
+  "According to <context> [5] Source: data/langchain-persistence.md". `gpt-4o-mini` never did
+  this.
 
 ## Model choice
 
-Staying on `gpt-4o-mini`. As of 2026-10-12, OpenAI's deprecations page lists no shutdown
+Staying on `gpt-4o-mini` as the default, with `llama3.2:3b` as the local option. As of 2026-10-12, OpenAI's deprecations page lists no shutdown
 date for it, and it accepts `temperature=0`, which the app relies on for repeatable answers.
 
 Worth knowing before switching: `langchain-openai` silently discards `temperature` for model
@@ -201,6 +228,16 @@ What has and has not been checked, so an assumption is not mistaken for a test.
   live Streamlit server.
 - The claim that two 1536-dimension embedding models fail silently together is inferred from
   Chroma checking only vector width. It has not been reproduced with two live models.
+- The `nomic-embed-text` prefixes (`search_document: ` and `search_query: `) were added
+  because its model card requires them. Nothing tested the model without them, so how much
+  they matter here is unmeasured.
+- Ollama's behaviour on a prompt longer than its context window was avoided, not tested.
+  Ollama defaults to 4,096 tokens on machines like this one, and `models.py` sets 8,192. The
+  longest prompt measured (six long history messages plus six chunks) was 2,107 tokens.
+- The speed figures come from one Apple M2 with 8 GB, one run per combination. They are
+  wall-clock from `evals/run.py`, so they include network round trips for OpenAI and model
+  loading for Ollama. On this machine the local answer runs only completed with Chrome and
+  VS Code closed.
 - Code review, 2026-08-05: no secrets in `data/`, and `.env` is gitignored. The documents are
   full of `{"configurable": {"thread_id": "1"}}` samples and `ChatPromptTemplate` uses
   f-string syntax, so a runtime `KeyError` looked likely. Tested rather than assumed:
