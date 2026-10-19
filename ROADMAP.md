@@ -232,16 +232,16 @@ exercise.
 - **`long-term-memory-store` fails in every setup, because of how it is worded.** Investigated
   on 2026-10-18, retrieval only. The question describes the need ("persist across different
   conversation threads"), but the documents file the answer under the solution's name,
-  "long-term memory". The chunk that answers it (`## Add long-term memory`, with `InMemoryStore` and
-  `compile(store=store)`) ranked 10th with OpenAI embeddings and 31st with `nomic-embed-text`,
-  so it was never among the six sent to the model. The chunks that won talk about threads and
-  conversations, which in these documents is short-term memory, plus a page footer saying "use
-  stores to persist durable data across threads". That is where the vague answers come from.
-  Asked as "How do I add long-term memory to a LangGraph graph?", the same chunk ranked 2nd and
-  1st. Nothing in the code, the grader, or the models is broken: plain similarity search works
-  when you already use the documents' words. The question stays as written, because rewording
-  it to match would hide a real weakness. Searching with a drafted answer is the experiment to
-  try next, in Phase 4.
+  "long-term memory". The chunk that answers it (`## Add long-term memory`, with
+  `InMemoryStore` and `compile(store=store)`) ranked 10th with OpenAI embeddings and 31st with
+  `nomic-embed-text`, so it was never among the six sent to the model. The chunks that won
+  talk about threads and conversations, which in these documents is short-term memory, plus a
+  page footer saying "use stores to persist durable data across threads". That is where the
+  vague answers come from. Asked as "How do I add long-term memory to a LangGraph graph?", the
+  same chunk ranked 2nd and 1st. Nothing in the code, the grader, or the models is broken:
+  plain similarity search works when you already use the documents' words. The question stays
+  as written, because rewording it to match would hide a real weakness. Searching with a
+  drafted answer is the experiment to try next, in Phase 4.
 - **`llama3.2:3b` sometimes repeats the prompt's formatting to the user.** One answer opened
   "According to <context> [2] Source: data/langchain-short-term-memory.md </context>".
   `gpt-4o-mini` never did this.
