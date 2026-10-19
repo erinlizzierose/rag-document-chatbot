@@ -13,7 +13,7 @@ PASS  summarize-messages
 PASS  trim-vs-summarize
 FAIL  long-term-memory-store
       Q: How do I store information that should persist across different conversation threads?
-      A: To store information that should persist across different conversation threads, you can use long-term memory. This allows you to store and recall user-specific or application-level data across different threads and sessions. You can find more details in the source document [data/langchain-short-term
+      A: To store information that should persist across different conversation threads, you can use long-term memory. This allows you to store and recall user-specific or application-level data across different threads and sessions. You can find more details in the source [data/langchain-short-term-memory.m
       ! missing: InMemoryStore or PostgresStore or BaseStore or namespace
       retrieved: data/langchain-persistence.md, data/langchain-short-term-memory.md, data/langchain-short-term-memory.md, data/langchain-short-term-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md
 
@@ -24,14 +24,22 @@ PASS  minimum-python
 PASS  langchain-classic
 PASS  chat-model-return-type
 PASS  refuse-capital-of-france
+      A: I do not know.
 PASS  refuse-django-deploy
+      A: I do not know.
 PASS  refuse-model-pricing
+      A: I do not know.
 PASS  refuse-langchain-roadmap
+      A: I do not know.
 PASS  refuse-project-internals
+      A: I do not know.
 PASS  refuse-near-miss-encrypt-checkpoints
+      A: I do not know.
 PASS  refuse-near-miss-redis-version
+      A: I do not know.
 PASS  refuse-near-miss-embeddings-return-type
+      A: I do not know.
 
 25/26 passed
 failed: long-term-memory-store
-36 s in total, 1.4 s per question
+32 s in total, 1.2 s per question

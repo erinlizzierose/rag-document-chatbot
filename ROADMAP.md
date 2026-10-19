@@ -16,13 +16,13 @@ measures it, and the current settings scored 25 of 26 when last run (2026-10-18)
 miss is `long-term-memory-store`, explained under Phase 3. Offline unit tests cover the
 parts that don't call a model.
 
-The same pipeline also runs on local Ollama models. All four combinations of OpenAI and
-Ollama embeddings and answers were evaluated on 2026-10-18 and scored 23 to 25 of 26. Local
-answers were about eight times slower (one Apple M2 with 8 GB, wall-clock including network
+The same pipeline also runs on local Ollama models. All four combinations of OpenAI and Ollama
+embeddings and answers were evaluated on 2026-10-18 and scored 23 to 25 of 26. Local answers
+were roughly seven to nine times slower (one Apple M2 with 8 GB, wall-clock including network
 and model loading). The fully local pair scored lowest: the small model left a key out of one
-answer and declined another question the documents answer. The two `nomic-embed-text` runs
-were redone the same day after a bug in its question prefix was found and fixed. The README
-has the table. What is left is the stretch work in Phase 4 and the open issues below.
+answer and declined another question the documents answer. The two `nomic-embed-text` runs were
+redone the same day after a bug in its question prefix was found and fixed. The README has the
+table. What is left is the stretch work in Phase 4 and the open issues below.
 
 ## Phase 0: Make it real (done)
 
@@ -133,8 +133,10 @@ measured.
       topics the documents discuss at length but never answer. `gpt-4o-mini` declines all
       three with the current prompt, so the prompt was left alone. The local model was the
       real test: `llama3.2:3b` declined all 8 refusal questions, including the 3 near misses,
-      with the same prompt. *Verified by reading its answers, since the eval prints only
-      failures. Each was a plain "I don't know."*
+      with the same prompt. *The refusal check is a marker list, so "The context does not
+      mention X, but X is Y" would pass it. The eval now prints every refusal answer, and the
+      saved runs show all 32 across the four combinations were refusals: "I do not know." from
+      `gpt-4o-mini`, "I don't know." from `llama3.2:3b`, which twice wrote "You do not know."*
 - [x] **Install Ollama** and pull a chat model and `nomic-embed-text`. Ollama 0.40.6 from
       Homebrew, `llama3.2:3b` (2.0 GB download) and `nomic-embed-text` (274 MB).
       `langchain-ollama==1.1.0` is pinned in `requirements.txt`, compatible with the pinned
@@ -157,7 +159,7 @@ measured.
 - [x] **Run the eval set against each combination** and record answer quality, speed, and
       cost. All four runs are saved in [`evals/results/`](evals/results/). Scores were 25/26
       for all OpenAI, 25/26 for `nomic-embed-text` with `gpt-4o-mini`, 25/26 for OpenAI
-      embeddings with `llama3.2:3b`, and 23/26 fully local, at about 1.4 seconds per
+      embeddings with `llama3.2:3b`, and 23/26 fully local, at about 1.2 to 1.7 seconds per
       question with `gpt-4o-mini` answers and 10 to 12 with `llama3.2:3b`. Speed is wall-clock
       on one Apple M2 with 8 GB. Cost per run is under a cent with OpenAI answers and nothing
       with local ones, estimated from token counts, not billed. *The two `nomic-embed-text`
@@ -172,14 +174,14 @@ measured.
 
 Expectation going in: Ollama is free and works offline, but slower and weaker at obeying the
 "answer only from context" instruction. The eval set's eight refusal questions are there to
-measure exactly that. *What happened: free and slower, both confirmed (about eight times
-slower per answer, on one Apple M2 with 8 GB, wall-clock including network and model loading).
-Offline use was not tested. The grounding expectation was not borne out on this set, because
-`llama3.2:3b` declined all eight. Its weaknesses showed up elsewhere, in the fully local run.
-It answered `thread-id-config` but left out the `configurable` key, although all six chunks it
-was given contained it. And it said "I don't know." to `grade-documents`, which the documents
-answer and which `gpt-4o-mini` answered from the same six chunks. Neither failure was an
-answer from outside the context.*
+measure exactly that. *What happened: free and slower, both confirmed (roughly seven to nine
+times slower per answer, on one Apple M2 with 8 GB, wall-clock including network and model
+loading). Offline use was not tested. The grounding expectation was not borne out on this set,
+because `llama3.2:3b` declined all eight. Its weaknesses showed up elsewhere, in the fully
+local run. It answered `thread-id-config` but left out the `configurable` key, although all six
+chunks it was given contained it. And it said "I don't know." to `grade-documents`, which the
+documents answer and which `gpt-4o-mini` answered from the same six chunks. Neither failure was
+an answer from outside the context.*
 
 ## Phase 4: Stretch
 
@@ -234,17 +236,18 @@ exercise.
   conversation threads"), but the documents file the answer under the solution's name,
   "long-term memory". The chunk that answers it (`## Add long-term memory`, with
   `InMemoryStore` and `compile(store=store)`) ranked 10th with OpenAI embeddings and 31st with
-  `nomic-embed-text`, so it was never among the six sent to the model. The chunks that won
-  talk about threads and conversations, which in these documents is short-term memory, plus a
-  page footer saying "use stores to persist durable data across threads". That is where the
-  vague answers come from. Asked as "How do I add long-term memory to a LangGraph graph?", the
-  same chunk ranked 2nd and 1st. Nothing in the code, the grader, or the models is broken:
-  plain similarity search works when you already use the documents' words. The question stays
-  as written, because rewording it to match would hide a real weakness. Searching with a
+  `nomic-embed-text`, so it was never among the six sent to the model. The only other chunk
+  that answers it, the Quickstart in `langchain-persistence.md`, ranked 166th and 35th. The
+  chunks that won talk about threads and conversations, which in these documents is short-term
+  memory, plus a page footer saying "use stores to persist durable data across threads". That
+  is where the vague answers come from. Asked as "How do I add long-term memory to a LangGraph
+  graph?", the same chunk ranked 2nd and 1st. Nothing in the code, the grader, or the models is
+  broken: plain similarity search works when you already use the documents' words. The question
+  stays as written, because rewording it to match would hide a real weakness. Searching with a
   drafted answer is the experiment to try next, in Phase 4.
 - **`llama3.2:3b` sometimes repeats the prompt's formatting to the user.** One answer opened
   "According to <context> [2] Source: data/langchain-short-term-memory.md </context>".
-  `gpt-4o-mini` never did this.
+  No `gpt-4o-mini` answer in the saved runs does this.
 
 ## Model choice
 
@@ -276,7 +279,8 @@ What has and has not been checked, so an assumption is not mistaken for a test.
   with no prefix at all has not been tested.
 - Ollama's behaviour on a prompt longer than its context window was avoided, not tested.
   Ollama defaults to 4,096 tokens on machines like this one, and `models.py` sets 8,192. The
-  longest prompt measured (six long history messages plus six chunks) was 2,107 tokens.
+  longest prompt measured (six long history messages plus six chunks) was 2,107 tokens, in
+  a one-off check with a throwaway script, not one saved in the repo.
 - The speed figures come from one Apple M2 with 8 GB, one run per combination. They are
   wall-clock from `evals/run.py`, so they include network round trips for OpenAI and model
   loading for Ollama. On this machine the local answer runs only completed with Chrome and

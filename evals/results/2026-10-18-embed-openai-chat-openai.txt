@@ -24,14 +24,22 @@ PASS  minimum-python
 PASS  langchain-classic
 PASS  chat-model-return-type
 PASS  refuse-capital-of-france
+      A: I do not know.
 PASS  refuse-django-deploy
+      A: I do not know.
 PASS  refuse-model-pricing
+      A: I do not know.
 PASS  refuse-langchain-roadmap
+      A: I do not know.
 PASS  refuse-project-internals
+      A: I do not know.
 PASS  refuse-near-miss-encrypt-checkpoints
+      A: I do not know.
 PASS  refuse-near-miss-redis-version
+      A: I do not know.
 PASS  refuse-near-miss-embeddings-return-type
+      A: I do not know.
 
 25/26 passed
 failed: long-term-memory-store
-38 s in total, 1.4 s per question
+44 s in total, 1.7 s per question

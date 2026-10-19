@@ -101,6 +101,8 @@ EMBEDDING_BACKEND=ollama
 CHAT_BACKEND=ollama
 ```
 
+A running app reads `.env` only when it starts, so restart it after changing these.
+
 Then run `python ingest.py`. Each embedding model keeps its own index in `vectorstore/`, so
 after changing `EMBEDDING_BACKEND` the new index does not exist yet, and the app says to run
 `ingest.py` instead of searching the wrong one. When both backends are `ollama`, no OpenAI
@@ -145,18 +147,18 @@ python -m unittest discover -s tests -v
 
 ## OpenAI against a local model
 
-All four combinations of OpenAI and Ollama embeddings and answers, each run once against the
-same 26 questions on 2026-10-18. `evals/run.py` prints the models first and the timing last.
-The two `nomic-embed-text` rows were run again the same day after a bug in its question prefix
-was fixed (see What I learned below), and once more after `thread-id-config` was changed to
-accept a second source file (see below). These are those last runs.
+All four combinations of OpenAI and Ollama embeddings and answers, against the same 26
+questions on 2026-10-18. `evals/run.py` prints the models first, the timing last, and the
+answer to every refusal question, so a saved run shows what each model said when it declined.
+The runs were repeated during the day as bugs were fixed (see What I learned below and the
+`thread-id-config` note); the table shows the last run of each.
 
 | Embeddings | Answers | Score (of 26) | Answerable (of 18) | Refusals (of 8) | Seconds per question | Cost per run |
 |---|---|---|---|---|---|---|
-| `text-embedding-3-small` | `gpt-4o-mini` | 25 | 17 | 8 | 1.4 | under 1 cent |
-| `nomic-embed-text` | `gpt-4o-mini` | 25 | 17 | 8 | 1.4 | under 1 cent |
-| `text-embedding-3-small` | `llama3.2:3b` | 25 | 17 | 8 | 11.9 | effectively nothing |
-| `nomic-embed-text` | `llama3.2:3b` | 23 | 15 | 8 | 10.2 | $0 |
+| `text-embedding-3-small` | `gpt-4o-mini` | 25 | 17 | 8 | 1.7 | under 1 cent |
+| `nomic-embed-text` | `gpt-4o-mini` | 25 | 17 | 8 | 1.2 | under 1 cent |
+| `text-embedding-3-small` | `llama3.2:3b` | 25 | 17 | 8 | 11.3 | effectively nothing |
+| `nomic-embed-text` | `llama3.2:3b` | 23 | 15 | 8 | 11.1 | $0 |
 
 Seconds come from one Apple M2 with 8 GB of RAM. They are wall-clock, so they include network
 round trips for OpenAI and model loading for Ollama. Costs are estimates from token counts,
@@ -181,11 +183,11 @@ key, although all six chunks it was given contained it, so following the answer 
 work. On `grade-documents` it said "I don't know." to a question the documents answer, and
 `gpt-4o-mini` answered it from the same six chunks.
 
-The speed difference is the large one, about eight times per answer. The fully local pair
-took 11.3, 9.9 and 10.2 seconds per question across its three runs, so treat the timings as
-rough. All four runs fail `long-term-memory-store` the same way, so that one is not about the
-model. One run per combination on 26 questions is a small sample, so a gap of one or two
-questions is a hint, not a ranking.
+The speed difference is the large one, roughly seven to nine times per answer. The fully local
+pair took 11.3, 9.9, 10.2 and 11.1 seconds per question across its four runs, so treat the
+timings as rough. All four runs fail `long-term-memory-store` the same way, so that one is not
+about the model. One run per combination on 26 questions is a small sample, so a gap of one or
+two questions is a hint, not a ranking.
 
 ## Cost
 
@@ -195,7 +197,7 @@ roughly $0.0004, most of it the six retrieved chunks sent to the model, so a dol
 2,500 questions. Follow-ups make one extra, smaller call to rewrite the question. These are
 estimates from token counts at OpenAI's published prices, not measured bills. The local
 backend costs nothing per question but is slower: about 10 to 12 seconds per question with
-`llama3.2:3b` against about 1.4 with `gpt-4o-mini`, wall-clock on one Apple M2
+`llama3.2:3b` against about 1.2 to 1.7 with `gpt-4o-mini`, wall-clock on one Apple M2
 with 8 GB.
 
 ## What I learned building this
@@ -224,13 +226,13 @@ It ranked 15th. Stripping links and markup made it worse, because the chunk boun
 and pushed the answer behind even more unrelated code. Smaller chunks fixed it. Going too small
 (300) broke two other answers by splitting them across chunks.
 
-**Similarity search matches how a question is worded, not what you meant.** Asked how to
-"store information that should persist across different conversation threads", every setup
-gave a vague answer. The documents file that answer under "long-term memory", while the words
+**Similarity search matches how a question is worded, not what you meant.** Asked how to "store
+information that should persist across different conversation threads", every setup gave a
+vague answer. The documents file that answer under "long-term memory", while the words
 "conversation" and "thread" fill the short-term memory pages, so those won and the answer chunk
-ranked 10th. Asked about "long-term memory" directly, it ranked 2nd. A user who does not know
-a field's vocabulary yet gets the weakest retrieval, and the eval keeps that question as written
-so the weakness stays visible.
+ranked 10th with OpenAI embeddings. Asked about "long-term memory" directly, it ranked 2nd. A
+user who does not know a field's vocabulary yet gets the weakest retrieval, and the eval keeps
+that question as written so the weakness stays visible.
 
 **A passing eval check can be passing by luck.** One question required the word "delete",
 which the documents use only in a code comment; their actual advice is to "prune". It passed
@@ -261,17 +263,18 @@ harder to break, not unbreakable.
 
 **A small local model failed by leaving things out, not by ignoring the rules.** I expected
 `llama3.2:3b` to obey "answer only from the context" less well than `gpt-4o-mini`. It declined
-all 8 questions the documents cannot answer, including the 3 near misses. I confirmed that by
-reading its answers, because the eval prints only failures, and the refusal check passed all 8
-again after the prefix fix below. Where it lost questions, it left out the one key that made
+all 8 questions the documents cannot answer, including the 3 near misses, and the saved runs
+show each answer. Nearly all are "I don't know."; twice it wrote "You do not know.", a small
+model's slip that still declines. Where it lost questions, it left out the one key that made
 the code work although every chunk it had contained it, and once said "I don't know." to a
 question its chunks answered.
 
-**Swapping one half of RAG at a time shows which half matters.** Against the all-OpenAI
-baseline, changing the answering model alone left the score at 25, and so did changing the
-embeddings alone once the eval accepted a second correct source file. Only the fully local pair
-dropped, to 23, and the same small model answered both of the questions it lost when OpenAI's
-embeddings chose the chunks, so the two halves interact. Choosing the two with separate
+**Swapping one half at a time did not move the score; only the fully local pair dropped.**
+Against the all-OpenAI baseline, changing the answering model alone left the score at 25, and so
+did changing the embeddings alone once the eval accepted a second correct source file. The fully
+local pair dropped to 23, and the same small model answered both of the questions it lost when
+OpenAI's embeddings chose the chunks. That suggests the two halves interact, though one run and
+a two-question gap is a hint, not proof. Choosing the two with separate
 settings in `.env`, which `models.py` applies, is what made that visible.
 
 **A wrong embedding prefix raises no error either.** Every question went to `nomic-embed-text`
