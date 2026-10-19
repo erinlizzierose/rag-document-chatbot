@@ -1,0 +1,44 @@
+Answers from llama3.2:3b, search with nomic-embed-text
+
+PASS  add-checkpointer
+PASS  checkpointer-vs-store
+PASS  memorysaver-restarts
+PASS  thread-id-too-long
+PASS  checkpoints-unbounded
+FAIL  thread-id-config
+      Q: How do I pass a thread_id when invoking a graph?
+      A: You can pass a `thread_id` when invoking a graph by including it in the `config` dictionary. The `thread_id` should be set to the ID of the thread you want to use.
+      ! missing: configurable
+      retrieved: data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-add-memory.md, data/langchain-persistence.md
+
+PASS  trim-messages
+PASS  trim-middleware
+PASS  delete-messages
+PASS  summarize-messages
+PASS  trim-vs-summarize
+FAIL  long-term-memory-store
+      Q: How do I store information that should persist across different conversation threads?
+      A: According to <context> [5] Source: data/langchain-persistence.md, you can use either short-term, thread-scoped memory or long-term, cross-thread memory to store information that should persist across different conversation threads.
+
+For short-term memory, you can use [checkpointers](/oss/python/lang
+      ! missing: InMemoryStore or PostgresStore or BaseStore or namespace
+      retrieved: data/langchain-persistence.md, data/langchain-short-term-memory.md, data/langchain-short-term-memory.md, data/langchain-add-memory.md, data/langchain-persistence.md, data/langchain-short-term-memory.md
+
+PASS  store-semantic-search
+PASS  grade-documents
+PASS  rewrite-on-bad-retrieval
+PASS  minimum-python
+PASS  langchain-classic
+PASS  chat-model-return-type
+PASS  refuse-capital-of-france
+PASS  refuse-django-deploy
+PASS  refuse-model-pricing
+PASS  refuse-langchain-roadmap
+PASS  refuse-project-internals
+PASS  refuse-near-miss-encrypt-checkpoints
+PASS  refuse-near-miss-redis-version
+PASS  refuse-near-miss-embeddings-return-type
+
+24/26 passed
+failed: thread-id-config, long-term-memory-store
+293 s in total, 11.3 s per question

@@ -1,0 +1,37 @@
+Answers from llama3.2:3b, search with text-embedding-3-small
+
+PASS  add-checkpointer
+PASS  checkpointer-vs-store
+PASS  memorysaver-restarts
+PASS  thread-id-too-long
+PASS  checkpoints-unbounded
+PASS  thread-id-config
+PASS  trim-messages
+PASS  trim-middleware
+PASS  delete-messages
+PASS  summarize-messages
+PASS  trim-vs-summarize
+FAIL  long-term-memory-store
+      Q: How do I store information that should persist across different conversation threads?
+      A: According to [data/langchain-persistence.md], you can use stores to persist durable data across threads. Stores allow you to store application-defined key-value data across threads, which can be used to store information that should persist across different conversation threads.
+      ! missing: InMemoryStore or PostgresStore or BaseStore or namespace
+      retrieved: data/langchain-short-term-memory.md, data/langchain-persistence.md, data/langchain-short-term-memory.md, data/langchain-persistence.md, data/langchain-persistence.md, data/langchain-persistence.md
+
+PASS  store-semantic-search
+PASS  grade-documents
+PASS  rewrite-on-bad-retrieval
+PASS  minimum-python
+PASS  langchain-classic
+PASS  chat-model-return-type
+PASS  refuse-capital-of-france
+PASS  refuse-django-deploy
+PASS  refuse-model-pricing
+PASS  refuse-langchain-roadmap
+PASS  refuse-project-internals
+PASS  refuse-near-miss-encrypt-checkpoints
+PASS  refuse-near-miss-redis-version
+PASS  refuse-near-miss-embeddings-return-type
+
+25/26 passed
+failed: long-term-memory-store
+309 s in total, 11.9 s per question
